@@ -113,3 +113,36 @@ test('Escape dismisses a constant suggestion without ending the snippet', t => {
   key('Tab');
   assert.equal(snippets.active(), false);
 });
+
+test('declared variables complete inside placeholders without ending navigation', t => {
+  const {cm, snippets, key} = setup(t);
+  // Add a declaration before starting a fresh snippet.
+  cm.setValue('const int ledPin = 13;\ndigitalW');
+  cm.setCursor({line:1,ch:8});
+  snippets.insert(item, {from:{line:1,ch:0}, to:{line:1,ch:8}});
+  cm.replaceSelection('led', 'end', '+input');
+  const hint = createHintProvider(snippets);
+  assert.equal(hint(cm).list[0].text, 'ledPin');
+  cm.showHint({hint, completeSingle:false});
+  key('Tab');
+  assert.equal(snippets.active(), true);
+  key('Tab');
+  assert.equal(cm.getSelection(), 'value');
+  assert.equal(cm.getLine(1), 'digitalWrite(ledPin, value);');
+});
+
+test('variable index updates after declarations are renamed or removed', async t => {
+  const {cm, snippets} = setup(t);
+  cm.setValue('int oldPin;\nold');
+  cm.setCursor({line:1,ch:3});
+  const hint = createHintProvider(snippets);
+  assert.equal(hint(cm).list[0].text, 'oldPin');
+  cm.setValue('int newPin;\nnew');
+  cm.setCursor({line:1,ch:3});
+  await new Promise(resolve => setTimeout(resolve, 160));
+  assert.equal(hint(cm).list[0].text, 'newPin');
+  cm.setValue('old');
+  cm.setCursor({line:0,ch:3});
+  await new Promise(resolve => setTimeout(resolve, 160));
+  assert.equal(hint(cm), null);
+});

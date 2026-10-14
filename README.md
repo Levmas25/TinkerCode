@@ -44,3 +44,9 @@ Matching is case-insensitive: DIGITALW completes to digitalWrite, serial.PR to S
 
 New standalone function calls receive a trailing semicolon, including before a trailing line comment. Existing semicolons and parentheses are preserved. Expression contexts, including multiline assignments and loop headers, do not receive a semicolon. Detection is intentionally conservative; ambiguous contexts may require typing the semicolon manually. The final snippet Tab stop is after the inserted semicolon.
 
+
+## Sketch variables
+
+Declarations using common Arduino types (int, byte, bool, unsigned long, String, fixed-width integer types, etc.) are suggested, including parameters, pointers, arrays, and comma-separated declarations. Matching is case-insensitive and inserts the declared spelling. Variables are also available inside snippet placeholders; Tab accepts the suggestion before navigating arguments.
+
+The declaration index refreshes after 120 ms without edits, rather than rescanning the sketch for every hint request. Comments and string contents are ignored. This is a lightweight sketch-wide scanner, not a C++ language server: suggestions are not scope-filtered, custom types/aliases and complex declarations are not fully supported, and macros and struct members are not resolved.
