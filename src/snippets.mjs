@@ -1,5 +1,5 @@
 // Produce insertion text and argument ranges without depending on the editor.
-export function planSnippet(item, followingText) {
+export function planSnippet(item, followingText, standalone = false) {
   const signature = item.displayText;
   const open = signature.indexOf('(');
   if (open < 0 || /^\s*\(/.test(followingText)) {
@@ -12,7 +12,8 @@ export function planSnippet(item, followingText) {
     const label = match[0].trimEnd();
     fields.push({ start: open + 1 + match.index, end: open + 1 + match.index + label.length });
   }
-  return { text: signature, fields };
+  const terminator = standalone && /^\s*(?:\/\/.*)?$/.test(followingText) ? ';' : '';
+  return { text: signature + terminator, fields };
 }
 
 export function createSnippets(cm) {
@@ -63,7 +64,7 @@ export function createSnippets(cm) {
       stop();
       const from = item.from || data.from;
       const to = item.to || data.to;
-      const plan = planSnippet(item, cm.getLine(to.line).slice(to.ch));
+      const plan = planSnippet(item, cm.getLine(to.line).slice(to.ch), isStatementStart(cm.getRange({line: 0, ch: 0}, from)));
       cm.operation(() => {
         cm.replaceRange(plan.text, from, to, 'complete');
         const pos = offset => ({ line: from.line, ch: from.ch + offset });
@@ -86,4 +87,19 @@ export function createSnippets(cm) {
       });
     },
   };
+}
+
+// Conservative statement detection, run only when a completion is accepted.
+export function isStatementStart(source) {
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, token =>
+    token.startsWith('/') ? ' ' : 'literal');
+  let parentheses = 0;
+  let brackets = 0;
+  for (const char of code) {
+    if (char === '(') parentheses++;
+    if (char === ')') parentheses--;
+    if (char === '[') brackets++;
+    if (char === ']') brackets--;
+  }
+  return parentheses === 0 && brackets === 0 && /(?:^|[;{}])\s*$/.test(code);
 }

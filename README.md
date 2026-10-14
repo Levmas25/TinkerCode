@@ -37,3 +37,9 @@ Firefox 128+ is required for MAIN-world content scripts. Chrome has a separate b
 
 Complete digitalWrite, replace pin with 13, press Tab, replace value with HIGH, and press Tab to exit. Try Shift+Tab, Escape, deleting a placeholder, and undo. Automated tests use real CodeMirror in jsdom; the test runner exits explicitly because CodeMirror's browser polling timers can outlive the simulated document. Reload the temporary add-on and Tinkercad after rebuilding.
 
+
+## Completion casing and semicolons
+
+Matching is case-insensitive: DIGITALW completes to digitalWrite, serial.PR to Serial.print, and high to HIGH. Inserted names always use Arduino's canonical casing.
+
+New standalone function calls receive a trailing semicolon, including before a trailing line comment. Existing semicolons and parentheses are preserved. Expression contexts, including multiline assignments and loop headers, do not receive a semicolon. Detection is intentionally conservative; ambiguous contexts may require typing the semicolon manually. The final snippet Tab stop is after the inserted semicolon.

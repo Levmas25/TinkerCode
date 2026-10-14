@@ -42,7 +42,7 @@ test('completion creates editable placeholders and tracks their changed lengths'
   assert.equal(cm.getSelection(), 'HIGH');
   key('Tab');
   assert.equal(snippets.active(), false);
-  assert.equal(cm.getValue(), 'digitalWrite(13, HIGH)');
+  assert.equal(cm.getValue(), 'digitalWrite(13, HIGH);');
   assert.equal(cm.getCursor().ch, cm.getValue().length);
 });
 test('empty arguments retain a Tab stop', t => {
@@ -60,7 +60,7 @@ test('Escape preserves code and removes snippet navigation', t => {
   const {cm,snippets,key} = setup(t);
   key('Esc');
   assert.equal(snippets.active(), false);
-  assert.equal(cm.getValue(), item.displayText);
+  assert.equal(cm.getValue(), item.displayText + ';');
 });
 test('undo exits snippet mode and restores original input', t => {
   const {cm,snippets} = setup(t);
@@ -74,5 +74,6 @@ test('moving outside the active placeholder exits snippet mode', t => {
   assert.equal(snippets.active(), false);
 });
 test.after(() => dom.window.close());
+
 
 

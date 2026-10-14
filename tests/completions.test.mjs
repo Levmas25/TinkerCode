@@ -17,3 +17,10 @@ test('does not offer unrelated members or empty input', () => {
   assert.equal(complete('', 0), null);
   assert.equal(complete('object.digitalW', 15).list.length, 0);
 });
+
+test('case-insensitive matching preserves canonical Arduino spelling', () => {
+  assert.equal(complete('DIGITALW', 8).list[0].text, 'digitalWrite');
+  assert.equal(complete('high', 4).list[0].text, 'HIGH');
+  assert.equal(complete('serial.PR', 9).list[0].text, 'Serial.print');
+  assert.equal(complete('DIGITALWRITE', 12).list[0].text, 'digitalWrite');
+});

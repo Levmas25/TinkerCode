@@ -22,7 +22,8 @@ export function complete(line, cursor) {
   return {
     start: cursor - prefix.length,
     end: cursor + suffix.length,
-    list: entries.filter(([name]) => name.startsWith(prefix) && name !== prefix)
+    list: entries.filter(([name]) => name.toLowerCase().startsWith(prefix.toLowerCase()) && name !== prefix)
       .slice(0, 12).map(([text, displayText]) => ({text, displayText})),
   };
 }
+
