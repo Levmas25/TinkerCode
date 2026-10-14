@@ -1,0 +1,4 @@
+node_modules/
+.output/
+.wxt/
+src/hint-addon.js
