@@ -159,8 +159,11 @@ test('function descriptions are rendered separately from insertion text', t => {
   cm.showHint({hint, completeSingle:false});
   const row = document.querySelector('.CodeMirror-hints .CodeMirror-hint');
   assert.equal(row.querySelector('.tinkercode-signature').textContent, completion.displayText);
-  assert.equal(row.querySelector('.tinkercode-description').textContent, completion.description);
+  assert.equal(row.title, completion.description);
+  assert.equal(row.textContent, completion.displayText);
+  assert.equal(row.querySelector('.tinkercode-description'), null);
   cm.state.completionActive.pick(cm.state.completionActive.data, 0);
   assert.equal(cm.getValue(), 'analogWrite(pin, value);');
   assert.equal(cm.getSelection(), 'pin');
 });
+

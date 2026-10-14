@@ -22,10 +22,8 @@ export function renderHint(element, _data, completion) {
   signature.textContent = completion.displayText;
   element.appendChild(signature);
   if (completion.description) {
-    const description = doc.createElement('span');
-    description.className = 'tinkercode-description';
-    description.textContent = completion.description;
-    element.appendChild(description);
+    element.title = completion.description;
     element.setAttribute('aria-label', `${completion.displayText}. ${completion.description}`);
   }
 }
+

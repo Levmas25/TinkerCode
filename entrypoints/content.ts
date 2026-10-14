@@ -42,4 +42,5 @@ export default defineContentScript({
 });
 
 
-import '../src/hints.css';
+
+
