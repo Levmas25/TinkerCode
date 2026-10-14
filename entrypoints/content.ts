@@ -1,3 +1,4 @@
+import { defaults, readShortcuts } from '../src/shortcuts.mjs';
 import { attachFunctionHover } from '../src/hover.mjs';
 import { attachHotkeys } from '../src/hotkeys.mjs';
 import { installHints } from '../src/hint-addon.js';
@@ -10,6 +11,17 @@ export default defineContentScript({
   world: 'MAIN',
   main() {
     const attached = new WeakSet<object>();
+    const callbacks = new WeakMap<object, () => void>();
+    let settings = defaults;
+    window.addEventListener('message', event => {
+      if (event.source !== window || event.origin !== location.origin || event.data?.type !== 'tinkercode:shortcuts') return;
+      settings = readShortcuts(event.data.value);
+      document.querySelectorAll('.CodeMirror').forEach(element => {
+        const cm = (element as any).CodeMirror;
+        if (cm && callbacks.has(cm)) attachHotkeys(cm, settings, callbacks.get(cm));
+      });
+    });
+    window.postMessage({type:'tinkercode:request-shortcuts'}, location.origin);
     function attach() {
       const CM = (window as any).CodeMirror;
       if (!CM?.defineExtension) return;
@@ -19,13 +31,14 @@ export default defineContentScript({
         if (!cm || attached.has(cm)) return;
         attached.add(cm);
         attachFunctionHover(cm);
-        attachHotkeys(cm);
+
         const snippets = createSnippets(cm);
         const hint = createHintProvider(snippets);
         function show() {
           if (hint(cm)) cm.showHint({hint, completeSingle: false});
         }
-        cm.addKeyMap({'Ctrl-Space': show});
+        callbacks.set(cm, show);
+        attachHotkeys(cm, settings, show);
         cm.on('inputRead', (_editor: any, change: any) => {
           if (change.origin === '+input' && !cm.state.completionActive) show();
         });
@@ -44,6 +57,7 @@ export default defineContentScript({
     attach();
   },
 });
+
 
 
 

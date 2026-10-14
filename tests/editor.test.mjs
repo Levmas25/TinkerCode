@@ -1,3 +1,4 @@
+import { defaults } from '../src/shortcuts.mjs';
 import { functionHintAt, attachFunctionHover } from '../src/hover.mjs';
 import { toggleComments, duplicateLines, moveLines, attachHotkeys } from '../src/hotkeys.mjs';
 import { createHintProvider } from '../src/hints.mjs';
@@ -256,4 +257,22 @@ test('Alt+Shift+Up duplicates above and keeps the selection on the new copy', t 
   key('Shift-Alt-Up');
   assert.equal(cm.getValue(), 'a\na\nb\nc\nd');
   assert.equal(cm.getCursor().line, 0);
+});
+
+test('updating shortcut settings removes old bindings and applies new ones', t => {
+  const {cm,key} = setup(t);
+  attachHotkeys(cm);
+  cm.setValue('a\nb'); cm.setCursor({line:0,ch:0});
+  let invoked=0;
+  attachHotkeys(cm,{...defaults,comment:'Ctrl-K',duplicateUp:'',complete:'Alt-Space'},()=>invoked++);
+  key('Ctrl-K');
+  assert.equal(cm.getLine(0),'// a');
+  key('Alt-Space');
+  assert.equal(invoked,1);
+  assert.ok(!cm.state.keyMaps.some(map => map['Ctrl-/']));
+  assert.ok(!cm.state.keyMaps.some(map => map['Shift-Alt-Up']));
+  attachHotkeys(cm,defaults);
+  assert.ok(!cm.state.keyMaps.some(map => map['Ctrl-K']));
+  key('Ctrl-/');
+  assert.equal(cm.getLine(0),'a');
 });

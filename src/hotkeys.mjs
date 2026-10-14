@@ -1,3 +1,5 @@
+import { defaults, readShortcuts } from './shortcuts.mjs';
+const maps = new WeakMap();
 function selectedLines(cm) {
   if (cm.listSelections().length !== 1 || cm.getOption('readOnly')) return null;
   const from = cm.getCursor('from');
@@ -53,15 +55,20 @@ export function moveLines(cm, direction) {
     cm.setSelection({line:anchor.line + direction,ch:anchor.ch}, {line:head.line + direction,ch:head.ch});
   });
 }
-export function attachHotkeys(cm) {
-  cm.addKeyMap({
-    'Ctrl-/': toggleComments,
-    'Shift-Alt-Up': editor => duplicateLines(editor, -1),
-    'Shift-Alt-Down': editor => duplicateLines(editor, 1),
-    'Alt-Up': editor => moveLines(editor, -1),
-    'Alt-Down': editor => moveLines(editor, 1),
-  });
+export function attachHotkeys(cm, settings = defaults, show = () => {}) {
+  const previous = maps.get(cm);
+  if (previous) cm.removeKeyMap(previous);
+  const bindings = readShortcuts(settings);
+  const handlers = {
+    comment: toggleComments,
+    duplicateUp: editor => duplicateLines(editor, -1),
+    duplicateDown: editor => duplicateLines(editor, 1),
+    moveUp: editor => moveLines(editor, -1),
+    moveDown: editor => moveLines(editor, 1),
+    complete: show,
+  };
+  const map = {};
+  for (const [id, handler] of Object.entries(handlers)) if (bindings[id]) map[bindings[id]] = handler;
+  cm.addKeyMap(map, true); // Keep completion/snippet navigation maps above editing shortcuts.
+  maps.set(cm, map);
 }
-
-
-

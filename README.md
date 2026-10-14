@@ -29,7 +29,7 @@ The real Tinkercad integration still needs these live checks. Unit tests do not 
 
 TypeScript + WXT, Manifest V3, no backend. The page-world script uses Tinkercad's existing CodeMirror instance. Only CodeMirror's MIT-licensed completion add-on and CSS are bundled, not its editor core. Arduino definitions and matching are separate from the adapter. The add-on is generated during npm prepare; its license is in THIRD_PARTY_LICENSE.txt.
 
-No background worker, remote suggestions, or storage permissions. The content script runs on www.tinkercad.com and attaches when a CodeMirror editor is mounted. A mutation observer discovers editors; it does not poll or read the whole sketch on each keystroke.
+No background worker or remote suggestions. Local extension storage is used only for shortcut preferences. The content script runs on www.tinkercad.com and attaches when a CodeMirror editor is mounted. A mutation observer discovers editors; it does not poll or read the whole sketch on each keystroke.
 
 Firefox 128+ is required for MAIN-world content scripts. Chrome has a separate build from the same source. Browser compatibility and site integration need manual verification before release.
 
@@ -72,3 +72,9 @@ With the editor focused:
 
 Each operation has its own undo step. Shortcuts respect read-only mode and document boundaries. This first version supports a single cursor or contiguous selection; multiple selections are left unchanged. These shortcuts take precedence over browser shortcuts while the editor is focused.
 
+
+## Customize shortcuts
+
+Open TinkerCode from the browser toolbar or Extensions menu. Click a shortcut field and press the desired combination, then click Save shortcuts. The × button disables an extension binding; Reset defaults stages the original bindings until you save. Preferences are saved locally and applied to open Tinkercad editors. Duplicate combinations and core editing shortcuts are rejected. Browser/OS-reserved keys may remain unavailable. Disabling a TinkerCode binding does not remove Tinkercad's own bindings.
+
+The settings popup and isolated content script access extension storage. A validated, settings-only message passes shortcut values to the page-world editor adapter; page messages cannot write extension storage. No sketch code is sent through this bridge.
