@@ -24,15 +24,17 @@ export function toggleComments(cm) {
     }
   });
 }
-export function duplicateLines(cm) {
+export function duplicateLines(cm, direction = 1) {
   const range = selectedLines(cm);
   if (!range) return;
   const {anchor, head} = cm.listSelections()[0];
   const text = cm.getRange({line:range.start,ch:0}, {line:range.end,ch:cm.getLine(range.end).length});
   const count = range.end - range.start + 1;
   cm.operation(() => {
-    cm.replaceRange('\n' + text, {line:range.end,ch:cm.getLine(range.end).length}, undefined, 'tinkercode-duplicate');
-    cm.setSelection({line:anchor.line + count,ch:anchor.ch}, {line:head.line + count,ch:head.ch});
+    if (direction < 0) cm.replaceRange(text + '\n', {line:range.start,ch:0}, undefined, 'tinkercode-duplicate');
+    else cm.replaceRange('\n' + text, {line:range.end,ch:cm.getLine(range.end).length}, undefined, 'tinkercode-duplicate');
+    const offset = direction < 0 ? 0 : count;
+    cm.setSelection({line:anchor.line + offset,ch:anchor.ch}, {line:head.line + offset,ch:head.ch});
   });
 }
 export function moveLines(cm, direction) {
@@ -54,10 +56,12 @@ export function moveLines(cm, direction) {
 export function attachHotkeys(cm) {
   cm.addKeyMap({
     'Ctrl-/': toggleComments,
-    'Shift-Ctrl-D': duplicateLines,
+    'Shift-Alt-Up': editor => duplicateLines(editor, -1),
+    'Shift-Alt-Down': editor => duplicateLines(editor, 1),
     'Alt-Up': editor => moveLines(editor, -1),
     'Alt-Down': editor => moveLines(editor, 1),
   });
 }
+
 
 

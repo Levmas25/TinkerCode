@@ -67,7 +67,8 @@ Hover over a built-in function name in written code (for example digitalWrite or
 With the editor focused:
 
 - Ctrl+/ toggles line comments.
-- Ctrl+Shift+D duplicates the current line or selected line block.
+- Alt+Shift+Up / Alt+Shift+Down duplicates the current line or selected line block above / below, keeping the cursor or selection on the new copy.
 - Alt+Up / Alt+Down moves the current line or selected line block.
 
 Each operation has its own undo step. Shortcuts respect read-only mode and document boundaries. This first version supports a single cursor or contiguous selection; multiple selections are left unchanged. These shortcuts take precedence over browser shortcuts while the editor is focused.
+

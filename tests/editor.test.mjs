@@ -214,7 +214,7 @@ test('duplicate and move shortcuts preserve blocks and cursor position', t => {
   attachHotkeys(cm);
   cm.setValue('one\ntwo\nthree');
   cm.setCursor({line:1,ch:2});
-  key('Shift-Ctrl-D');
+  key('Shift-Alt-Down');
   assert.equal(cm.getValue(), 'one\ntwo\ntwo\nthree');
   assert.deepEqual({...cm.getCursor()}, {line:2,ch:2});
   key('Alt-Down');
@@ -240,3 +240,20 @@ test('line operations respect selections, document boundaries, and read-only mod
 });
 
 
+
+test('Alt+Shift+Up duplicates above and keeps the selection on the new copy', t => {
+  const {cm,key} = setup(t);
+  attachHotkeys(cm);
+  cm.setValue('a\nb\nc\nd');
+  cm.setSelection({line:1,ch:0},{line:3,ch:0});
+  key('Shift-Alt-Up');
+  assert.equal(cm.getValue(), 'a\nb\nc\nb\nc\nd');
+  assert.equal(cm.getSelection(), 'b\nc\n');
+  assert.equal(cm.getCursor('from').line, 1);
+  cm.undo();
+  assert.equal(cm.getValue(), 'a\nb\nc\nd');
+  cm.setCursor({line:0,ch:1});
+  key('Shift-Alt-Up');
+  assert.equal(cm.getValue(), 'a\na\nb\nc\nd');
+  assert.equal(cm.getCursor().line, 0);
+});
