@@ -2,6 +2,16 @@
 
 Small Firefox-first Arduino autocomplete extension for Tinkercad's CodeMirror 5 editor.
 
+## Screenshots
+
+Arduino function suggestions with parameter signatures as you type:
+
+![Autocomplete showing digitalWrite and digitalRead suggestions in Tinkercad](docs/screenshots/arduino-autocomplete.png)
+
+Hover over a suggestion to see a short description:
+
+![Hover tooltip explaining pinMode in the autocomplete dropdown](docs/screenshots/function-hover-description.png)
+
 ## Development
 
 Requires Node.js and npm. Run `npm install`, then `npm run dev`.
@@ -78,3 +88,4 @@ Each operation has its own undo step. Shortcuts respect read-only mode and docum
 Open TinkerCode from the browser toolbar or Extensions menu. Click a shortcut field and press the desired combination, then click Save shortcuts. The × button disables an extension binding; Reset defaults stages the original bindings until you save. Preferences are saved locally and applied to open Tinkercad editors. Duplicate combinations and core editing shortcuts are rejected. Browser/OS-reserved keys may remain unavailable. Disabling a TinkerCode binding does not remove Tinkercad's own bindings.
 
 The settings popup and isolated content script access extension storage. A validated, settings-only message passes shortcut values to the page-world editor adapter; page messages cannot write extension storage. No sketch code is sent through this bridge.
+
