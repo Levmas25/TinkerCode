@@ -1,3 +1,5 @@
+import { attachFunctionHover } from '../src/hover.mjs';
+import { attachHotkeys } from '../src/hotkeys.mjs';
 import { installHints } from '../src/hint-addon.js';
 import { createSnippets } from '../src/snippets.mjs';
 import { createHintProvider } from '../src/hints.mjs';
@@ -16,6 +18,8 @@ export default defineContentScript({
         const cm = (element as any).CodeMirror;
         if (!cm || attached.has(cm)) return;
         attached.add(cm);
+        attachFunctionHover(cm);
+        attachHotkeys(cm);
         const snippets = createSnippets(cm);
         const hint = createHintProvider(snippets);
         function show() {
@@ -40,6 +44,7 @@ export default defineContentScript({
     attach();
   },
 });
+
 
 
 

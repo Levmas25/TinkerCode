@@ -1,3 +1,5 @@
+import { functionHintAt, attachFunctionHover } from '../src/hover.mjs';
+import { toggleComments, duplicateLines, moveLines, attachHotkeys } from '../src/hotkeys.mjs';
 import { createHintProvider } from '../src/hints.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -166,4 +168,75 @@ test('function descriptions are rendered separately from insertion text', t => {
   assert.equal(cm.getValue(), 'analogWrite(pin, value);');
   assert.equal(cm.getSelection(), 'pin');
 });
+
+
+// Editor interactions use the same real CodeMirror instance as snippet tests.
+
+test('hover identifies written function calls and Serial methods', t => {
+  const {cm} = setup(t);
+  cm.setValue('digitalWrite(1, 1);\nSerial.println(42);\nother.digitalWrite(1, 1);');
+  assert.match(functionHintAt(cm, {line:0,ch:4}), /digitalWrite\(pin, value\).*\nSet a digital/s);
+  assert.match(functionHintAt(cm, {line:1,ch:9}), /Serial.println/);
+  assert.equal(functionHintAt(cm, {line:0,ch:15}), null);
+  assert.equal(functionHintAt(cm, {line:2,ch:10}), null);
+  const original = cm.getTokenAt;
+  cm.getTokenAt = () => ({type:'comment'});
+  assert.equal(functionHintAt(cm, {line:0,ch:4}), null);
+  cm.getTokenAt = () => ({type:'string'});
+  assert.equal(functionHintAt(cm, {line:0,ch:4}), null);
+  cm.getTokenAt = original;
+});
+test('hover tooltip clears on mouse leave', t => {
+  const {cm} = setup(t);
+  cm.setValue('digitalWrite(1, 1);');
+  cm.coordsChar = () => ({line:0,ch:3});
+  attachFunctionHover(cm);
+  const token = cm.getWrapperElement().querySelector('.CodeMirror-line span');
+  token.dispatchEvent(new window.MouseEvent('mousemove', {bubbles:true}));
+  assert.match(token.title, /digitalWrite/);
+  cm.getWrapperElement().dispatchEvent(new window.MouseEvent('mouseleave'));
+  assert.equal(token.hasAttribute('title'), false);
+});
+test('comment shortcut toggles selected lines with indentation and one-step undo', t => {
+  const {cm, key} = setup(t);
+  attachHotkeys(cm);
+  cm.setValue('  first();\n  second();\nthird();');
+  cm.setSelection({line:0,ch:0},{line:2,ch:0});
+  key('Ctrl-/');
+  assert.equal(cm.getValue(), '  // first();\n  // second();\nthird();');
+  key('Ctrl-/');
+  assert.equal(cm.getValue(), '  first();\n  second();\nthird();');
+  cm.undo();
+  assert.equal(cm.getValue(), '  // first();\n  // second();\nthird();');
+});
+test('duplicate and move shortcuts preserve blocks and cursor position', t => {
+  const {cm,key} = setup(t);
+  attachHotkeys(cm);
+  cm.setValue('one\ntwo\nthree');
+  cm.setCursor({line:1,ch:2});
+  key('Shift-Ctrl-D');
+  assert.equal(cm.getValue(), 'one\ntwo\ntwo\nthree');
+  assert.deepEqual({...cm.getCursor()}, {line:2,ch:2});
+  key('Alt-Down');
+  assert.equal(cm.getValue(), 'one\ntwo\nthree\ntwo');
+  key('Alt-Up');
+  assert.equal(cm.getValue(), 'one\ntwo\ntwo\nthree');
+  cm.undo();
+  assert.equal(cm.getValue(), 'one\ntwo\nthree\ntwo');
+});
+test('line operations respect selections, document boundaries, and read-only mode', t => {
+  const {cm} = setup(t);
+  cm.setValue('a\nb\nc\nd');
+  cm.setSelection({line:1,ch:0},{line:3,ch:0});
+  moveLines(cm,-1);
+  assert.equal(cm.getValue(),'b\nc\na\nd');
+  moveLines(cm,-1);
+  assert.equal(cm.getValue(),'b\nc\na\nd');
+  duplicateLines(cm);
+  assert.equal(cm.getValue(),'b\nc\nb\nc\na\nd');
+  cm.setOption('readOnly',true);
+  toggleComments(cm); duplicateLines(cm); moveLines(cm,1);
+  assert.equal(cm.getValue(),'b\nc\nb\nc\na\nd');
+});
+
 
