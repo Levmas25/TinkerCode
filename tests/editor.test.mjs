@@ -1,3 +1,4 @@
+import { createHintProvider } from '../src/hints.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -77,3 +78,38 @@ test.after(() => dom.window.close());
 
 
 
+
+for (const prefix of ['h', 'H', 'hi', 'HI', 'high']) {
+  test(`constant completion inside a snippet preserves navigation: ${prefix}`, t => {
+    const {cm, snippets, key} = setup(t);
+    cm.replaceSelection('13', 'end', '+input');
+    key('Tab');
+    cm.replaceSelection(prefix, 'end', '+input');
+    const hint = createHintProvider(snippets);
+    assert.equal(hint(cm).list[0].text, 'HIGH');
+    cm.showHint({hint, completeSingle:false});
+    key('Tab'); // Accept suggestion before advancing the snippet.
+    assert.equal(cm.getValue(), 'digitalWrite(13, HIGH);');
+    assert.equal(snippets.active(), true);
+    key('Shift-Tab');
+    assert.equal(cm.getSelection(), '13');
+    key('Tab');
+    assert.equal(cm.getSelection(), 'HIGH');
+    key('Tab');
+    assert.equal(snippets.active(), false);
+    assert.equal(cm.getCursor().ch, cm.getValue().length);
+  });
+}
+test('Escape dismisses a constant suggestion without ending the snippet', t => {
+  const {cm, snippets, key} = setup(t);
+  cm.replaceSelection('13', 'end', '+input');
+  key('Tab');
+  cm.replaceSelection('lo', 'end', '+input');
+  const hint = createHintProvider(snippets);
+  assert.equal(hint(cm).list[0].text, 'LOW');
+  cm.showHint({hint, completeSingle:false});
+  key('Esc');
+  assert.equal(snippets.active(), true);
+  key('Tab');
+  assert.equal(snippets.active(), false);
+});

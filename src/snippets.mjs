@@ -61,9 +61,16 @@ export function createSnippets(cm) {
   return {
     active: () => !!session,
     insert(item, data) {
-      stop();
       const from = item.from || data.from;
       const to = item.to || data.to;
+      if (session && !item.displayText.includes('(')) {
+        cm.operation(() => {
+          cm.replaceRange(item.text, from, to, 'complete');
+          cm.setCursor({line: from.line, ch: from.ch + item.text.length});
+        });
+        return;
+      }
+      stop();
       const plan = planSnippet(item, cm.getLine(to.line).slice(to.ch), isStatementStart(cm.getRange({line: 0, ch: 0}, from)));
       cm.operation(() => {
         cm.replaceRange(plan.text, from, to, 'complete');
@@ -103,3 +110,5 @@ export function isStatementStart(source) {
   }
   return parentheses === 0 && brackets === 0 && /(?:^|[;{}])\s*$/.test(code);
 }
+
+
