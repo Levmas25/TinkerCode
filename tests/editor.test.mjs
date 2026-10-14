@@ -146,3 +146,21 @@ test('variable index updates after declarations are renamed or removed', async t
   await new Promise(resolve => setTimeout(resolve, 160));
   assert.equal(hint(cm), null);
 });
+
+test('function descriptions are rendered separately from insertion text', t => {
+  const {cm, snippets} = setup(t);
+  cm.setValue('analogW');
+  cm.setCursor({line:0,ch:7});
+  const hint = createHintProvider(snippets);
+  const completion = hint(cm).list[0];
+  assert.equal(completion.text, 'analogWrite');
+  assert.equal(completion.displayText, 'analogWrite(pin, value)');
+  assert.match(completion.description, /PWM/);
+  cm.showHint({hint, completeSingle:false});
+  const row = document.querySelector('.CodeMirror-hints .CodeMirror-hint');
+  assert.equal(row.querySelector('.tinkercode-signature').textContent, completion.displayText);
+  assert.equal(row.querySelector('.tinkercode-description').textContent, completion.description);
+  cm.state.completionActive.pick(cm.state.completionActive.data, 0);
+  assert.equal(cm.getValue(), 'analogWrite(pin, value);');
+  assert.equal(cm.getSelection(), 'pin');
+});

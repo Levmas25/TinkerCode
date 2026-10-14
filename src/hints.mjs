@@ -1,3 +1,4 @@
+import { renderHint } from './descriptions.mjs';
 import { createVariableIndex } from './variables.mjs';
 import { complete } from './completions.mjs';
 
@@ -14,10 +15,11 @@ export function createHintProvider(snippets) {
     const matches = result.list.filter(item => !snippets.active() || !item.displayText.includes('('));
     if (!matches.length) return null;
     return {
-      list: matches.map(item => ({...item, hint: (_cm, data, completion) => snippets.insert(completion, data)})),
+      list: matches.map(item => ({...item, render: renderHint, hint: (_cm, data, completion) => snippets.insert(completion, data)})),
       from: {line: pos.line, ch: result.start},
       to: {line: pos.line, ch: result.end},
     };
   };
 }
+
 

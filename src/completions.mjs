@@ -1,3 +1,4 @@
+import { descriptions } from './descriptions.mjs';
 export const entries = [
   ['pinMode', 'pinMode(pin, mode)'],
   ['digitalWrite', 'digitalWrite(pin, value)'],
@@ -29,9 +30,10 @@ export function complete(line, cursor, variables = []) {
     start: cursor - prefix.length,
     end: cursor + suffix.length,
     list: candidates.filter(([name]) => name.toLowerCase().startsWith(prefix.toLowerCase()) && name !== prefix)
-      .slice(0, 12).map(([text, displayText]) => ({text, displayText})),
+      .slice(0, 12).map(([text, displayText]) => ({text, displayText, ...(displayText.includes('(') && descriptions[text] ? {description: descriptions[text]} : {})})),
   };
 }
+
 
 
 
