@@ -21,7 +21,7 @@ Temporary add-ons are removed when Firefox restarts. Public distribution require
 
 ## First live checks
 
-Use a disposable circuit. Check `digitalW` and `Serial.pr` suggestions, insertion in the middle of a word, and suppression in strings/comments. Accepting a suggestion inserts its name; signatures are labels only. Verify Ctrl+Z restores the previous text. Complete a valid sketch, run the simulation, wait for saving, and reload to confirm persistence. Close/reopen Code and switch boards to check editor remounts.
+Use a disposable circuit. Check `digitalW` and `Serial.pr` suggestions, insertion in the middle of a word, and suppression in strings/comments. Accepting a function inserts its call and selects the first argument. Tab advances, Shift+Tab goes back, and Escape exits placeholder navigation. After the last argument, Tab moves beyond the closing parenthesis. Constants remain plain text; an existing opening parenthesis prevents duplicate parentheses. Suggestions pause while editing placeholders so Tab navigates arguments. Verify Ctrl+Z restores the previous text. Complete a valid sketch, run the simulation, wait for saving, and reload to confirm persistence. Close/reopen Code and switch boards to check editor remounts.
 
 The real Tinkercad integration still needs these live checks. Unit tests do not establish simulator or saving behavior.
 
@@ -32,3 +32,8 @@ TypeScript + WXT, Manifest V3, no backend. The page-world script uses Tinkercad'
 No background worker, remote suggestions, or storage permissions. The content script runs on www.tinkercad.com and attaches when a CodeMirror editor is mounted. A mutation observer discovers editors; it does not poll or read the whole sketch on each keystroke.
 
 Firefox 128+ is required for MAIN-world content scripts. Chrome has a separate build from the same source. Browser compatibility and site integration need manual verification before release.
+
+## Snippet checks
+
+Complete digitalWrite, replace pin with 13, press Tab, replace value with HIGH, and press Tab to exit. Try Shift+Tab, Escape, deleting a placeholder, and undo. Automated tests use real CodeMirror in jsdom; the test runner exits explicitly because CodeMirror's browser polling timers can outlive the simulated document. Reload the temporary add-on and Tinkercad after rebuilding.
+

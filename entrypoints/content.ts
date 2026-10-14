@@ -1,4 +1,5 @@
 import { installHints } from '../src/hint-addon.js';
+import { createSnippets } from '../src/snippets.mjs';
 import { complete } from '../src/completions.mjs';
 import 'codemirror/addon/hint/show-hint.css';
 
@@ -15,13 +16,14 @@ export default defineContentScript({
         const cm = (element as any).CodeMirror;
         if (!cm || attached.has(cm)) return;
         attached.add(cm);
+        const snippets = createSnippets(cm);
         function hint(editor: any) {
-          if (editor.getOption('readOnly') || editor.somethingSelected()) return null;
+          if (snippets.active() || editor.getOption('readOnly') || editor.somethingSelected()) return null;
           const pos = editor.getCursor();
           if (/comment|string/.test(editor.getTokenAt(pos).type ?? '')) return null;
           const result = complete(editor.getLine(pos.line), pos.ch);
           if (!result?.list.length) return null;
-          return {list: result.list, from: {line: pos.line, ch: result.start}, to: {line: pos.line, ch: result.end}};
+          return {list: result.list.map(item => ({ ...item, hint: (_cm: any, data: any, completion: any) => snippets.insert(completion, data) })), from: {line: pos.line, ch: result.start}, to: {line: pos.line, ch: result.end}};
         }
         function show() {
           if (hint(cm)) cm.showHint({hint, completeSingle: false});
@@ -45,3 +47,4 @@ export default defineContentScript({
     attach();
   },
 });
+
