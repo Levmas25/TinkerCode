@@ -1,23 +1,24 @@
 import { maskSource } from './source.mjs';
-import { collectFunctions } from './functions.mjs';
-// A declaration scanner for common Arduino types, not a full C++ parser.
-export function collectVariables(source) {
+import { scanFunctions, functionSuggestions } from './functions.mjs';
+import { buildScopes, visibleVariables } from './scopes.mjs';
+
+// Common Arduino declarations, with source positions for scope lookup.
+export function collectVariableDeclarations(source) {
   const code = maskSource(source);
   const type = /\b(?:(?:const|constexpr|static|volatile|extern|register|signed|unsigned)\s+)*(?:(?:long\s+)?(?:int|char|short|long|float|double|bool|boolean|byte|word|String|size_t|u?int(?:8|16|32|64)_t|auto)|unsigned|signed)\b\s*/g;
-  const names = new Set();
+  const declarations = [];
   for (const match of code.matchAll(type)) {
     let offset = match.index + match[0].length;
-    // Do not mistake identifiers containing a type word for declarations.
     if (match.index > 0 && /[\w.]/.test(code[match.index - 1])) continue;
     while (offset < code.length) {
       const declaration = code.slice(offset).match(/^\s*[*&]*\s*([A-Za-z_]\w*)\s*/);
       if (!declaration) break;
       const name = declaration[1];
+      const nameOffset = offset + declaration[0].indexOf(name);
       offset += declaration[0].length;
-      if (code[offset] === '(') break; // Function declaration / direct initialization.
-      if (!/[=,;\[){}]/.test(code[offset] ?? '') && offset !== code.length) break;
-      names.add(name);
-      // Skip an initializer or array dimensions, respecting nested commas.
+      if (code[offset] === '(') break;
+      if (!/[=,;:\[){}]/.test(code[offset] ?? '') && offset !== code.length) break;
+      declarations.push({name, offset:nameOffset, end:nameOffset+name.length, type:match[0].trim()});
       let depth = 0;
       while (offset < code.length) {
         const char = code[offset];
@@ -33,19 +34,42 @@ export function collectVariables(source) {
       offset++;
     }
   }
-  return [...names];
+  return declarations;
 }
-
-export function createSketchIndex(editor) {
-  function collect() {
-    const source=editor.getValue();
-    return {variables:collectVariables(source), functions:collectFunctions(source)};
-  }
-  let symbols=collect();
-  let timer;
-  editor.on('changes', () => {
-    clearTimeout(timer);
-    timer=setTimeout(()=> {symbols=collect();},120);
+export function collectVariables(source) {
+  return [...new Set(collectVariableDeclarations(source).map(item=>item.name))];
+}
+export function collectSketch(source) {
+  const functions = scanFunctions(source);
+  const scopes = buildScopes(source);
+  const declarations = collectVariableDeclarations(source).map(item=> {
+    const parameter = functions.find(fn=>item.offset >= fn.parameterStart && item.offset < fn.parameterEnd);
+    // Prototype parameters belong to no executable scope.
+    const scope = parameter ? (parameter.bodyStart===null ? undefined : scopes.find(scope=>scope.open===parameter.bodyStart)) :
+      scopes.filter(scope=>item.offset>=scope.start && item.offset<scope.end)
+        .sort((a,b)=>(a.end-a.start)-(b.end-b.start))[0];
+    return {...item, scope:scope ?? null};
   });
-  return ()=>symbols;
+  return {functions:functionSuggestions(functions), variablesAt:offset=>visibleVariables(declarations,offset)};
+}
+export function createSketchIndex(editor) {
+  let symbols = collectSketch(editor.getValue());
+  let dirty = false;
+  let timer;
+  function refresh() {
+    if (!dirty) return;
+    symbols = collectSketch(editor.getValue());
+    dirty = false;
+  }
+  editor.on('changes', () => {
+    dirty = true;
+    clearTimeout(timer);
+    timer=setTimeout(refresh,120);
+  });
+  return () => {
+    // Refresh once per changed document before using offsets; cursor-only
+    // requests share the cache. This avoids stale scope boundaries after edits.
+    refresh();
+    return symbols;
+  };
 }

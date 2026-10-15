@@ -2,10 +2,9 @@ import { maskSource } from './source.mjs';
 
 // Recognize ordinary free-function declarations/definitions at sketch scope.
 // This deliberately leaves templates, class methods, and function pointers out.
-export function collectFunctions(source) {
+export function scanFunctions(source) {
   const code = maskSource(source);
   const functions = [];
-  const seen = new Set();
   let depth = 0;
   let boundary = 0;
   for (let index=0; index<code.length; index++) {
@@ -27,7 +26,8 @@ export function collectFunctions(source) {
       if (code[end]==='(') nesting++;
       else if (code[end]===')' && --nesting===0) break;
     }
-    if (nesting || !/^\s*(?:noexcept\s*)?[;{]/.test(code.slice(end+1))) continue;
+    const tail = code.slice(end+1).match(/^\s*(?:noexcept\s*)?([;{])/);
+    if (nesting || !tail) continue;
     const raw=code.slice(index+1,end).trim();
     const params=splitParameters(raw);
     if (!params) continue;
@@ -46,14 +46,18 @@ export function collectFunctions(source) {
     }
     if (!valid) continue;
     const key=name+'('+parsed.map(p=>p.type.replace(/\s+/g,' ')).join(',')+')';
-    if (seen.has(key)) continue;
-    seen.add(key);
     functions.push({
-      text:name,
-      displayText:`${name}(${parsed.map(p=>p.label).join(', ')})`,
-      callText:`${name}(${parsed.map(p=>p.argument).join(', ')})`,
-      description:`Sketch function. Returns ${returnType}.`,
-      kind:'function',
+      key,
+      parameterStart:index+1,
+      parameterEnd:end,
+      bodyStart:tail[1]==='{' ? end+1+tail[0].lastIndexOf('{') : null,
+      item:{
+        text:name,
+        displayText:`${name}(${parsed.map(p=>p.label).join(', ')})`,
+        callText:`${name}(${parsed.map(p=>p.argument).join(', ')})`,
+        description:`Sketch function. Returns ${returnType}.`,
+        kind:'function',
+      },
     });
     index=end;
   }
@@ -75,3 +79,14 @@ function splitParameters(text) {
   return result;
 }
 
+
+export function functionSuggestions(declarations) {
+  const seen = new Set();
+  return declarations.filter(fn=> {
+    if (seen.has(fn.key)) return false;
+    seen.add(fn.key);return true;
+  }).map(fn=>fn.item);
+}
+export function collectFunctions(source) {
+  return functionSuggestions(scanFunctions(source));
+}

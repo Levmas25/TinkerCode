@@ -39,7 +39,7 @@ The real Tinkercad integration still needs these live checks. Unit tests do not 
 
 TypeScript + WXT, Manifest V3, no backend. The page-world script uses Tinkercad's existing CodeMirror instance. Only CodeMirror's MIT-licensed completion add-on and CSS are bundled, not its editor core. Arduino definitions and matching are separate from the adapter. The add-on is generated during npm prepare; its license is in THIRD_PARTY_LICENSE.txt.
 
-No background worker or remote suggestions. Local extension storage is used only for shortcut preferences. The content script runs on www.tinkercad.com and attaches when a CodeMirror editor is mounted. A mutation observer discovers editors; it does not poll or read the whole sketch on each keystroke.
+No background worker or remote suggestions. Local extension storage is used only for shortcut preferences. The content script runs on www.tinkercad.com and attaches when a CodeMirror editor is mounted. A mutation observer discovers editors without polling. Declaration and scope information is cached per document revision and reused when the cursor moves.
 
 Firefox 128+ is required for MAIN-world content scripts. Chrome has a separate build from the same source. Browser compatibility and site integration need manual verification before release.
 
@@ -59,7 +59,7 @@ New standalone function calls receive a trailing semicolon, including before a t
 
 Declarations using common Arduino types (int, byte, bool, unsigned long, String, fixed-width integer types, etc.) are suggested, including parameters, pointers, arrays, and comma-separated declarations. Matching is case-insensitive and inserts the declared spelling. Variables are also available inside snippet placeholders; Tab accepts the suggestion before navigating arguments.
 
-The declaration index refreshes after 120 ms without edits, rather than rescanning the sketch for every hint request. Comments and string contents are ignored. This is a lightweight sketch-wide scanner, not a C++ language server: suggestions are not scope-filtered, custom types/aliases and complex declarations are not fully supported, and macros and struct members are not resolved.
+Variable suggestions follow lexical scope and declaration order: globals, enclosing block locals, and current-function parameters are available; locals from sibling blocks and other functions are hidden. Inner declarations shadow outer declarations with the same name. Loop and conditional initializer variables stay within their control statement, including unbraced loop bodies and if/else branches. Prototype parameters are excluded. Comments and string contents are ignored. This lightweight scanner supports common Arduino declarations; custom types/aliases, complex C++ declarations, macros, and struct members are not fully resolved.
 
 ## Function descriptions
 
@@ -114,6 +114,10 @@ Accept `if`, `ifelse`, `else`, `while`, or `switch` from autocomplete to insert 
 
 ## Sketch-function autocomplete
 
-Ordinary functions declared or defined at sketch scope appear in suggestions with their parameter types. For example, `void blink(int pin, unsigned long duration)` produces a `blink(int pin, unsigned long duration)` suggestion and inserts `blink(pin, duration)` with editable argument stops. Existing parentheses are preserved; standalone calls receive a semicolon, while expression calls do not. Matching ignores case and inserts the declared spelling. Functions and variables share the same index, refreshed after a 120 ms typing pause.
+Ordinary functions declared or defined at sketch scope appear in suggestions with their parameter types. For example, `void blink(int pin, unsigned long duration)` produces a `blink(int pin, unsigned long duration)` suggestion and inserts `blink(pin, duration)` with editable argument stops. Existing parentheses are preserved; standalone calls receive a semicolon, while expression calls do not. Matching ignores case and inserts the declared spelling. Functions and variables share a cached index. It refreshes after a 120 ms typing pause or on the next hint request after an edit, keeping scope positions current. Cursor-only requests reuse the cache.
 
 Prototypes and matching definitions are deduplicated, and overloads with different parameter types remain available. Empty and `(void)` parameter lists insert empty calls; unnamed parameters use `arg1`, `arg2`, etc. Default argument values are omitted from the inserted call so each argument can be edited. This lightweight scanner supports ordinary free functions; templates, class/namespace members, and function-pointer parameters are outside its current scope. Nested function snippets remain disabled while another snippet is active.
+
+## Scope-aware variable checks
+
+In two functions with different parameters and locals, each function should suggest only its own variables plus earlier globals. Check nested blocks, a for-loop counter inside and after the loop, and a local name shadowing a global. Moving the cursor between functions updates visibility immediately. Editing braces also refreshes scope information on the next hint request. Incomplete sketches are handled as a best effort; advanced constructs such as templates, class/namespace members, lambda captures, and preprocessor branches are not fully analyzed.

@@ -413,3 +413,36 @@ test('sketch function index removes old names and offers renamed definitions', a
   await new Promise(resolve=>setTimeout(resolve,160));
   assert.equal(hint(cm),null);
 });
+
+test('hint provider follows the cursor between function scopes without editing', t => {
+  const {cm,snippets} = setup(t);
+  cm.setValue('int localGlobal = 13;\nvoid first(int localParam) {\n int localFirst;\n loc\n}\nvoid second() {\n int localSecond;\n loc\n}\nloc');
+  const hint=createHintProvider(snippets);
+  cm.setCursor({line:3,ch:4});
+  let names=hint(cm).list.map(item=>item.text);
+  assert.ok(names.includes('localGlobal'));
+  assert.ok(names.includes('localParam'));
+  assert.ok(names.includes('localFirst'));
+  assert.ok(!names.includes('localSecond'));
+  cm.setCursor({line:7,ch:4});
+  names=hint(cm).list.map(item=>item.text);
+  assert.ok(names.includes('localGlobal'));
+  assert.ok(names.includes('localSecond'));
+  assert.ok(!names.includes('localParam'));
+  assert.ok(!names.includes('localFirst'));
+  cm.setCursor({line:9,ch:3});
+  assert.deepEqual(hint(cm).list.map(item=>item.text),['localGlobal']);
+});
+test('scope index refreshes immediately after structural edits, before the debounce', t => {
+  const {cm,snippets} = setup(t);
+  cm.setValue('void first(int localParam) { int localValue;\nloc\n}');
+  cm.setCursor({line:1,ch:3});
+  const hint=createHintProvider(snippets);
+  assert.ok(hint(cm).list.some(item=>item.text==='localValue'));
+  cm.replaceRange('}\n',{line:1,ch:0});
+  cm.setCursor({line:2,ch:3});
+  assert.equal(hint(cm),null);
+  cm.replaceRange('',{line:1,ch:0},{line:2,ch:0});
+  cm.setCursor({line:1,ch:3});
+  assert.ok(hint(cm).list.some(item=>item.text==='localParam'));
+});

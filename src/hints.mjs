@@ -10,7 +10,7 @@ export function createHintProvider(snippets) {
     if (/comment|string/.test(editor.getTokenAt(pos).type ?? '')) return null;
     if (!indexes.has(editor)) indexes.set(editor, createSketchIndex(editor));
     const symbols = indexes.get(editor)();
-    const result = complete(editor.getLine(pos.line), pos.ch, symbols.variables, symbols.functions);
+    const result = complete(editor.getLine(pos.line), pos.ch, symbols.variablesAt(editor.indexFromPos(pos)), symbols.functions);
     if (!result) return null;
     // Nested function snippets are not supported; constants keep the current session.
     const matches = result.list.filter(item => !snippets.active() || (item.kind !== 'control' && !item.displayText.includes('(')));
