@@ -3,7 +3,7 @@ import { attachFunctionHover } from '../src/hover.mjs';
 import { attachHotkeys } from '../src/hotkeys.mjs';
 import { installHints } from '../src/hint-addon.js';
 import { createSnippets } from '../src/snippets.mjs';
-import { createHintProvider } from '../src/hints.mjs';
+import { createHintProvider, showCompletion } from '../src/hints.mjs';
 import 'codemirror/addon/hint/show-hint.css';
 
 export default defineContentScript({
@@ -35,7 +35,7 @@ export default defineContentScript({
         const snippets = createSnippets(cm);
         const hint = createHintProvider(snippets);
         function show() {
-          if (hint(cm)) cm.showHint({hint, completeSingle: false});
+          showCompletion(cm, hint);
         }
         callbacks.set(cm, show);
         attachHotkeys(cm, settings, show);

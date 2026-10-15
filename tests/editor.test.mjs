@@ -1,7 +1,8 @@
 import { defaults } from '../src/shortcuts.mjs';
 import { functionHintAt, attachFunctionHover } from '../src/hover.mjs';
 import { toggleComments, duplicateLines, moveLines, attachHotkeys } from '../src/hotkeys.mjs';
-import { createHintProvider } from '../src/hints.mjs';
+import { createHintProvider, showCompletion } from '../src/hints.mjs';
+import { createSketchIndex, collectSketch } from '../src/variables.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -187,15 +188,58 @@ test('hover identifies written function calls and Serial methods', t => {
   assert.equal(functionHintAt(cm, {line:0,ch:4}), null);
   cm.getTokenAt = original;
 });
-test('hover tooltip clears on mouse leave', t => {
+test('hover tooltip clears on mouse leave', async t => {
   const {cm} = setup(t);
   cm.setValue('digitalWrite(1, 1);');
   cm.coordsChar = () => ({line:0,ch:3});
   attachFunctionHover(cm);
   const token = cm.getWrapperElement().querySelector('.CodeMirror-line span');
   token.dispatchEvent(new window.MouseEvent('mousemove', {bubbles:true}));
+  await new Promise(resolve => window.requestAnimationFrame(resolve));
   assert.match(token.title, /digitalWrite/);
   cm.getWrapperElement().dispatchEvent(new window.MouseEvent('mouseleave'));
+  assert.equal(token.hasAttribute('title'), false);
+});
+
+test('hover coalesces pointer events, caches tokens and cancels stale work', t => {
+  const {cm} = setup(t);
+  cm.setValue('digitalWrite(1, 1);');
+  const frames = new Map();
+  const request = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
+  let nextFrame = 0, coordinates = 0, reads = 0, ch = 3;
+  window.requestAnimationFrame = callback => { frames.set(++nextFrame, callback); return nextFrame; };
+  window.cancelAnimationFrame = id => frames.delete(id);
+  t.after(() => { window.requestAnimationFrame = request; window.cancelAnimationFrame = cancel; });
+  const getLine = cm.getLine.bind(cm);
+  cm.getLine = line => { reads++; return getLine(line); };
+  cm.coordsChar = () => { coordinates++; return {line:0,ch}; };
+  attachFunctionHover(cm);
+  const wrapper = cm.getWrapperElement();
+  const token = wrapper.querySelector('.CodeMirror-line span');
+  const move = () => token.dispatchEvent(new window.MouseEvent('mousemove', {bubbles:true}));
+  const flush = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback()); };
+  move(); move(); move();
+  assert.equal(frames.size, 1);
+  assert.equal(coordinates, 0);
+  flush();
+  assert.equal(coordinates, 1);
+  assert.equal(reads, 1);
+  ch = 5; move(); flush();
+  assert.equal(reads, 1);
+  assert.match(token.title, /digitalWrite/);
+  move();
+  wrapper.dispatchEvent(new window.MouseEvent('mouseleave'));
+  assert.equal(frames.size, 0);
+  assert.equal(token.hasAttribute('title'), false);
+  move(); flush();
+  assert.equal(reads, 2);
+  move();
+  CodeMirror.signal(cm, 'scroll', cm);
+  assert.equal(frames.size, 0);
+  assert.equal(token.hasAttribute('title'), false);
+  move();
+  cm.replaceRange('//', {line:0,ch:0});
+  assert.equal(frames.size, 0);
   assert.equal(token.hasAttribute('title'), false);
 });
 test('comment shortcut toggles selected lines with indentation and one-step undo', t => {
@@ -445,4 +489,103 @@ test('scope index refreshes immediately after structural edits, before the debou
   cm.replaceRange('',{line:1,ch:0},{line:2,ch:0});
   cm.setCursor({line:1,ch:3});
   assert.ok(hint(cm).list.some(item=>item.text==='localParam'));
+});
+
+test('punctuation does not read or index the document for completion', t => {
+  const {cm, snippets} = setup(t);
+  cm.setValue('void loop() {\n ;\n}');
+  cm.setCursor({line:1,ch:2});
+  cm.getValue = () => { throw new Error('Unexpected document scan'); };
+  assert.equal(createHintProvider(snippets)(cm), null);
+});
+
+test('opening completion computes hints once and later updates use fresh hints', t => {
+  const {cm} = setup(t);
+  cm.closeHint();
+  cm.setCursor({line:0,ch:0});
+  let calls = 0;
+  const hint = () => ({list:[{text:'digitalWrite', displayText:`result ${++calls}`}],
+    from:{line:0,ch:0}, to:cm.getCursor()});
+  showCompletion(cm, hint);
+  assert.equal(calls, 1);
+  assert.equal(cm.state.completionActive.data.list[0].displayText, 'result 1');
+  cm.state.completionActive.update();
+  assert.equal(calls, 2);
+  assert.equal(cm.state.completionActive.data.list[0].displayText, 'result 2');
+  cm.closeHint();
+  showCompletion(cm, () => null);
+  assert.equal(cm.state.completionActive, null);
+});
+
+test('reference edits reuse the index and keep later scopes aligned', t => {
+  const {cm} = setup(t);
+  cm.setValue('int global; void first(int param) { int local; glob; }\nvoid second(int input) { int other; glo; }');
+  const index = createSketchIndex(cm);
+  const getValue = cm.getValue.bind(cm);
+  let reads = 0;
+  cm.getValue = () => { reads++; return getValue(); };
+  for (const text of ['global', 'g', 'globalAgain']) {
+    const line = cm.getLine(0);
+    const start = line.indexOf('int local; ') + 'int local; '.length;
+    const end = line.indexOf(';', start);
+    cm.replaceRange(text, {line:0,ch:start}, {line:0,ch:end});
+    const fresh = collectSketch(getValue());
+    for (const pos of [{line:0,ch:start+text.length}, {line:1,ch:cm.getLine(1).indexOf('glo;')+3}]) {
+      const offset = cm.indexFromPos(pos);
+      assert.deepEqual(index().variablesAt(offset), fresh.variablesAt(offset));
+    }
+  }
+  assert.equal(reads, 0);
+  cm.replaceRange('renamed', {line:0,ch:4}, {line:0,ch:10});
+  assert.ok(index().variablesAt(cm.indexFromPos({line:1,ch:cm.getLine(1).length-2})).includes('renamed'));
+  assert.equal(reads, 1);
+});
+
+test('batched and structural-word edits rebuild instead of reusing scope offsets', t => {
+  const {cm} = setup(t);
+  cm.setValue('void loop() { int local; loc; loc; }');
+  const index = createSketchIndex(cm);
+  cm.operation(() => {
+    cm.replaceRange('longer', {line:0,ch:24}, {line:0,ch:27});
+    cm.replaceRange('int', {line:0,ch:32}, {line:0,ch:35});
+  });
+  const source = cm.getValue();
+  for (let offset = 0; offset <= source.length; offset++) {
+    assert.deepEqual(index().variablesAt(offset), collectSketch(source).variablesAt(offset));
+  }
+});
+
+test('incremental offsets survive character insertions, deletions and undo', t => {
+  const {cm} = setup(t);
+  cm.setValue('int global; void loop(int param) { int local; glo; }');
+  const index = createSketchIndex(cm);
+  const start = cm.getLine(0).indexOf('glo;');
+  const verify = () => {
+    const source = cm.getValue(), fresh = collectSketch(source), cached = index();
+    for (let offset = 0; offset <= source.length; offset++) {
+      assert.deepEqual(cached.variablesAt(offset), fresh.variablesAt(offset), `offset ${offset}`);
+    }
+  };
+  cm.replaceRange('bal', {line:0,ch:start+3}); verify();
+  cm.replaceRange('', {line:0,ch:start+1}, {line:0,ch:start+5}); verify();
+  cm.replaceRange('other', {line:0,ch:start}, {line:0,ch:start+2}); verify();
+  cm.undo(); verify();
+  cm.redo(); verify();
+  // A structural keyword cannot reuse the old tokenization.
+  cm.replaceRange('int', {line:0,ch:start}, {line:0,ch:start+5}); verify();
+});
+
+test('reference edit history is bounded and rebases before the next lookup', t => {
+  const {cm} = setup(t);
+  cm.setValue('void loop() { int local; loc; }');
+  const index = createSketchIndex(cm);
+  const getValue = cm.getValue.bind(cm);
+  let reads = 0;
+  cm.getValue = () => { reads++; return getValue(); };
+  const start = cm.getLine(0).indexOf('loc;');
+  for (let i = 0; i < 65; i++) {
+    cm.replaceRange(i % 2 ? 'loc' : 'foo', {line:0,ch:start}, {line:0,ch:start+3});
+    assert.deepEqual(index().variablesAt(start+3), ['local']);
+  }
+  assert.equal(reads, 1);
 });
