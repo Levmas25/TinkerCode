@@ -29,6 +29,30 @@ Check types: `npm run check`. Run completion tests: `npm test`.
 
 Temporary add-ons are removed when Firefox restarts. Public distribution requires signing.
 
+## Load in Chrome
+
+1. If this is a fresh checkout, run `npm install`.
+2. Run `npm run build:chrome`.
+3. Open `chrome://extensions` in Chrome.
+4. Enable **Developer mode**.
+5. Click **Load unpacked** and select the project's `.output/chrome-mv3` folder. Select the folder, not `manifest.json`.
+6. Refresh Tinkercad and open a circuit in **Code > Text** mode.
+
+After rebuilding, click **Reload** on TinkerCode's extension card, then refresh Tinkercad. Open TinkerCode from the Extensions menu to customize shortcuts.
+
+## Load in Opera
+
+Opera uses the same Chromium build as Chrome; no separate build command is needed.
+
+1. If this is a fresh checkout, run `npm install`.
+2. Run `npm run build:chrome`.
+3. Open `opera://extensions` in Opera.
+4. Enable **Developer mode**.
+5. Click **Load unpacked** (or **Load unpacked extension**) and select the project's `.output/chrome-mv3` folder. Select the folder, not `manifest.json`.
+6. Refresh Tinkercad and open a circuit in **Code > Text** mode.
+
+After rebuilding, reload TinkerCode from Opera's Extensions page, then refresh Tinkercad. Open TinkerCode from the Extensions menu to customize shortcuts. Opera compatibility still needs a live browser check; these steps follow [Opera's extension testing instructions](https://help.opera.com/en/extensions/testing/).
+
 ## First live checks
 
 Use a disposable circuit. Check `digitalW` and `Serial.pr` suggestions, insertion in the middle of a word, and suppression in strings/comments. Accepting a function inserts its call and selects the first argument. Tab advances, Shift+Tab goes back, and Escape exits placeholder navigation. After the last argument, Tab moves beyond the closing parenthesis. Constants remain plain text; an existing opening parenthesis prevents duplicate parentheses. Constants such as HIGH, LOW, and OUTPUT are suggested inside placeholders. While the dropdown is open, Tab accepts a suggestion; the next Tab navigates arguments. Nested function snippets are not offered inside placeholders. Verify Ctrl+Z restores the previous text. Complete a valid sketch, run the simulation, wait for saving, and reload to confirm persistence. Close/reopen Code and switch boards to check editor remounts.
