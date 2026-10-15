@@ -2,6 +2,7 @@ import { defaults } from '../src/shortcuts.mjs';
 import { functionHintAt, attachFunctionHover } from '../src/hover.mjs';
 import { toggleComments, duplicateLines, moveLines, attachHotkeys } from '../src/hotkeys.mjs';
 import { createHintProvider } from '../src/hints.mjs';
+import { createSketchIndex, collectSketch } from '../src/variables.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -445,4 +446,50 @@ test('scope index refreshes immediately after structural edits, before the debou
   cm.replaceRange('',{line:1,ch:0},{line:2,ch:0});
   cm.setCursor({line:1,ch:3});
   assert.ok(hint(cm).list.some(item=>item.text==='localParam'));
+});
+
+test('punctuation does not read or index the document for completion', t => {
+  const {cm, snippets} = setup(t);
+  cm.setValue('void loop() {\n ;\n}');
+  cm.setCursor({line:1,ch:2});
+  cm.getValue = () => { throw new Error('Unexpected document scan'); };
+  assert.equal(createHintProvider(snippets)(cm), null);
+});
+
+test('reference edits reuse the index and keep later scopes aligned', t => {
+  const {cm} = setup(t);
+  cm.setValue('int global; void first(int param) { int local; glob; }\nvoid second(int input) { int other; glo; }');
+  const index = createSketchIndex(cm);
+  const getValue = cm.getValue.bind(cm);
+  let reads = 0;
+  cm.getValue = () => { reads++; return getValue(); };
+  for (const text of ['global', 'g', 'globalAgain']) {
+    const line = cm.getLine(0);
+    const start = line.indexOf('int local; ') + 'int local; '.length;
+    const end = line.indexOf(';', start);
+    cm.replaceRange(text, {line:0,ch:start}, {line:0,ch:end});
+    const fresh = collectSketch(getValue());
+    for (const pos of [{line:0,ch:start+text.length}, {line:1,ch:cm.getLine(1).indexOf('glo;')+3}]) {
+      const offset = cm.indexFromPos(pos);
+      assert.deepEqual(index().variablesAt(offset), fresh.variablesAt(offset));
+    }
+  }
+  assert.equal(reads, 0);
+  cm.replaceRange('renamed', {line:0,ch:4}, {line:0,ch:10});
+  assert.ok(index().variablesAt(cm.indexFromPos({line:1,ch:cm.getLine(1).length-2})).includes('renamed'));
+  assert.equal(reads, 1);
+});
+
+test('batched and structural-word edits rebuild instead of reusing scope offsets', t => {
+  const {cm} = setup(t);
+  cm.setValue('void loop() { int local; loc; loc; }');
+  const index = createSketchIndex(cm);
+  cm.operation(() => {
+    cm.replaceRange('longer', {line:0,ch:24}, {line:0,ch:27});
+    cm.replaceRange('int', {line:0,ch:32}, {line:0,ch:35});
+  });
+  const source = cm.getValue();
+  for (let offset = 0; offset <= source.length; offset++) {
+    assert.deepEqual(index().variablesAt(offset), collectSketch(source).variablesAt(offset));
+  }
 });

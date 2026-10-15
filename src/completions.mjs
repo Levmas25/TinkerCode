@@ -26,9 +26,14 @@ export const entries = [
   ['Serial.read', 'Serial.read()'],
   ...types.map(name => [name, name]),
 ];
-export function complete(line, cursor, variables = [], functions = []) {
+export function completionPrefix(line, cursor) {
   const prefix = line.slice(0, cursor).match(/[A-Za-z_][\w.]*$/)?.[0] ?? '';
   if (!prefix || /[\w.]/.test(line[cursor - prefix.length - 1] ?? '')) return null;
+  return prefix;
+}
+export function complete(line, cursor, variables = [], functions = []) {
+  const prefix = completionPrefix(line, cursor);
+  if (!prefix) return null;
   const suffix = line.slice(cursor).match(/^[\w.]*/)?.[0] ?? '';
   const seen = new Set();
   const candidates = [
