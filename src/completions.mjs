@@ -26,6 +26,10 @@ export const entries = [
   ['Serial.read', 'Serial.read()'],
   ...types.map(name => [name, name]),
 ];
+const builtinCandidates = entries.map(([text,displayText]) => ({text,displayText,
+  ...(Object.hasOwn(controlTemplates,text) ? {kind:'control'} : {}),
+  ...(displayText.includes('(') && descriptions[text] ? {description:descriptions[text]} : {}),
+}));
 export function completionPrefix(line, cursor) {
   const prefix = line.slice(0, cursor).match(/[A-Za-z_][\w.]*$/)?.[0] ?? '';
   if (!prefix || /[\w.]/.test(line[cursor - prefix.length - 1] ?? '')) return null;
@@ -36,23 +40,25 @@ export function complete(line, cursor, variables = [], functions = []) {
   if (!prefix) return null;
   const suffix = line.slice(cursor).match(/^[\w.]*/)?.[0] ?? '';
   const seen = new Set();
-  const candidates = [
-    ...variables.map(text=>({text,displayText:text})),
-    ...functions,
-    ...entries.map(([text,displayText])=>({text,displayText,
-      ...(Object.hasOwn(controlTemplates,text) ? {kind:'control'} : {}),
-      ...(displayText.includes('(') && descriptions[text] ? {description:descriptions[text]} : {}),
-    })),
-  ].filter(item=> {
-    const key=item.kind==='function' ? item.displayText : item.text;
-    if (seen.has(key)) return false;
-    seen.add(key);return true;
-  });
+  const normalizedPrefix = prefix.toLowerCase();
+  const list = [];
+  candidates: for (const group of [variables, functions, builtinCandidates]) {
+    for (const candidate of group) {
+      const variable = typeof candidate === 'string';
+      const text = variable ? candidate : candidate.text;
+      const kind = variable ? undefined : candidate.kind;
+      const key = kind === 'function' ? candidate.displayText : text;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (!text.toLowerCase().startsWith(normalizedPrefix) ||
+          (text === prefix && kind !== 'control' && kind !== 'function')) continue;
+      list.push(variable ? {text,displayText:text} : group === builtinCandidates ? {...candidate} : candidate);
+      if (list.length === 12) break candidates;
+    }
+  }
   return {
     start: cursor - prefix.length,
     end: cursor + suffix.length,
-    list: candidates.filter(item=>item.text.toLowerCase().startsWith(prefix.toLowerCase()) &&
-      (item.text !== prefix || item.kind==='control' || item.kind==='function'))
-      .slice(0,12),
+    list,
   };
 }

@@ -31,3 +31,23 @@ test('common types autocomplete with their canonical spelling', () => {
   }
   assert.ok(complete('for',3).list.some(item=>item.text==='for'));
 });
+
+test('completion preserves priority, overloads, deduplication and the twelve-item limit', () => {
+  const functions = [
+    {text:'custom', displayText:'custom(int pin)', kind:'function'},
+    {text:'custom', displayText:'custom(int pin)', kind:'function'},
+    {text:'custom', displayText:'custom(byte pin)', kind:'function'},
+  ];
+  assert.deepEqual(complete('cu', 2, ['custom', 'custom'], functions).list.map(item => item.displayText),
+    ['custom', 'custom(int pin)', 'custom(byte pin)']);
+  const variables = Array.from({length:12}, (_,i) => `candidate${i}`);
+  // An early match limit must avoid even reading the remaining candidates.
+  Object.defineProperty(variables, 12, {get() { throw new Error('Unnecessary candidate scan'); }});
+  assert.equal(complete('ca', 2, variables).list.length, 12);
+  assert.equal(complete('digitalW', 8, ['digitalWrite']).list[0].description, undefined);
+});
+
+test('mutating returned built-in completions does not change future results', () => {
+  complete('digitalW', 8).list[0].text = 'changed';
+  assert.equal(complete('digitalW', 8).list[0].text, 'digitalWrite');
+});
