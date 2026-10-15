@@ -55,12 +55,25 @@ export function moveLines(cm, direction) {
     cm.setSelection({line:anchor.line + direction,ch:anchor.ch}, {line:head.line + direction,ch:head.ch});
   });
 }
+export function selectWholeLine(cm) {
+  if (cm.listSelections().length !== 1) return;
+  const from = cm.getCursor('from');
+  const to = cm.getCursor('to');
+  let end = to.line > from.line && to.ch === 0 ? to.line - 1 : to.line;
+  const fullSelection = cm.somethingSelected() && from.ch === 0 &&
+    ((to.line > from.line && to.ch === 0) || (to.line === cm.lastLine() && to.ch === cm.getLine(to.line).length));
+  if (fullSelection && end < cm.lastLine()) end++;
+  const head = end < cm.lastLine() ? {line:end + 1,ch:0} : {line:end,ch:cm.getLine(end).length};
+  cm.setSelection({line:from.line,ch:0},head);
+  cm.scrollIntoView(head);
+}
 export function attachHotkeys(cm, settings = defaults, show = () => {}) {
   const previous = maps.get(cm);
   if (previous) cm.removeKeyMap(previous);
   const bindings = readShortcuts(settings);
   const handlers = {
     comment: toggleComments,
+    selectLine: selectWholeLine,
     duplicateUp: editor => duplicateLines(editor, -1),
     duplicateDown: editor => duplicateLines(editor, 1),
     moveUp: editor => moveLines(editor, -1),
@@ -72,3 +85,4 @@ export function attachHotkeys(cm, settings = defaults, show = () => {}) {
   cm.addKeyMap(map, true); // Keep completion/snippet navigation maps above editing shortcuts.
   maps.set(cm, map);
 }
+

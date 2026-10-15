@@ -1,6 +1,7 @@
 /** @type {Record<string, [string, string]>} */
 export const actions = {
   comment: ['Toggle comments', 'Ctrl-/'],
+  selectLine: ['Select whole line', 'Alt-L'],
   duplicateUp: ['Duplicate above', 'Shift-Alt-Up'],
   duplicateDown: ['Duplicate below', 'Shift-Alt-Down'],
   moveUp: ['Move up', 'Alt-Up'],
@@ -24,7 +25,15 @@ export function validateShortcuts(value) {
   return null;
 }
 export function readShortcuts(value) {
-  return validateShortcuts(value) ? {...defaults} : Object.fromEntries(Object.keys(actions).map(id => [id, value[id]]));
+  if (!value || typeof value !== 'object') return {...defaults};
+  /** @type {Record<string, string>} */
+  const migrated = {};
+  const used = new Set(Object.values(value));
+  for (const id of Object.keys(actions)) {
+    // Preserve existing preferences when a new action is introduced.
+    migrated[id] = Object.hasOwn(value,id) ? value[id] : used.has(defaults[id]) ? '' : defaults[id];
+  }
+  return validateShortcuts(migrated) ? {...defaults} : migrated;
 }
 export function shortcutFromEvent(event) {
   const names = {ArrowUp:'Up',ArrowDown:'Down',ArrowLeft:'Left',ArrowRight:'Right',' ':'Space'};
@@ -35,4 +44,6 @@ export function shortcutFromEvent(event) {
   return /^(?:Shift|Control|Alt|Meta)$/.test(event.key) ? null : result;
 }
 export const displayShortcut = key => key ? key.replaceAll('-', '+').replace('Up','↑').replace('Down','↓').replace('Left','←').replace('Right','→') : 'Disabled';
+
+
 

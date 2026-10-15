@@ -19,7 +19,7 @@ test('popup records, validates, saves, disables, and restores shortcuts', async 
     await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
     await new Promise(resolve=>setTimeout(resolve,0));
     const doc=dom.window.document;
-    assert.equal(doc.querySelectorAll('input').length,6);
+    assert.equal(doc.querySelectorAll('input').length,7);
     const input=doc.querySelector('#comment');
     const press=key=>input.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,ctrlKey:true,bubbles:true,cancelable:true}));
     press('k');
@@ -39,3 +39,4 @@ test('popup records, validates, saves, disables, and restores shortcuts', async 
     assert.deepEqual(stored.shortcuts,defaults);
   } finally {dom.window.close();delete globalThis.__popupBrowser;}
 });
+

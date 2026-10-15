@@ -103,3 +103,7 @@ for (int i = 0; i < count; i++) {
 Tab moves through initialization, condition, increment, and the body. Shift+Tab moves back; Escape ends navigation. Replace `count` with your loop limit. Each header section is independently editable: if you rename `i`, update the other sections too. The snippet follows the editor's indentation settings and keeps existing parentheses when completing a loop already being written. Nested snippet expansion is available after leaving the current snippet.
 
 Type suggestions include `int`, `char`, `double`, `float`, `bool`, `byte`, `short`, `long`, `unsigned`, `signed`, `void`, `String`, `size_t`, and fixed-width integer types. Matching is case-insensitive and inserts the correct spelling. Types are available inside snippet placeholders as well.
+
+## Select whole lines
+
+Alt+L selects the current line, including its newline when present. Press it again to extend the selection to the next line. The final line is selected through its last character. You can change or disable this binding in the shortcut popup. Existing saved shortcut preferences are preserved when this new action is added; if Alt+L is already assigned, the new action starts disabled to avoid a collision.

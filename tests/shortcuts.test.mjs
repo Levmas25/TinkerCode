@@ -17,3 +17,13 @@ test('recorded combinations use CodeMirror modifier order', () => {
   assert.equal(shortcutFromEvent({key:'k',ctrlKey:true}), 'Ctrl-K');
   assert.equal(shortcutFromEvent({key:'Control',ctrlKey:true}),null);
 });
+
+test('new actions preserve existing shortcut preferences and avoid collisions', () => {
+  const old = {...defaults,comment:'Ctrl-K'};
+  delete old.selectLine;
+  assert.equal(readShortcuts(old).comment,'Ctrl-K');
+  assert.equal(readShortcuts(old).selectLine,'Alt-L');
+  old.comment='Alt-L';
+  assert.equal(readShortcuts(old).comment,'Alt-L');
+  assert.equal(readShortcuts(old).selectLine,'');
+});

@@ -319,3 +319,31 @@ test('for snippet respects tab indentation and undoes as one insertion', t => {
   assert.equal(cm.getValue(),'void loop() {\n\tFOR\n}');
   assert.equal(snippets.active(),false);
 });
+
+test('Alt+L selects entire lines including the newline, and extends on repeat', t => {
+  const {cm,key} = setup(t);
+  attachHotkeys(cm);
+  cm.setValue('  first();\nsecond();\nthird();');
+  cm.setCursor({line:0,ch:4});
+  key('Alt-L');
+  assert.equal(cm.getSelection(),'  first();\n');
+  key('Alt-L');
+  assert.equal(cm.getSelection(),'  first();\nsecond();\n');
+  key('Alt-L');
+  assert.equal(cm.getSelection(),cm.getValue());
+  key('Alt-L');
+  assert.equal(cm.getSelection(),cm.getValue());
+});
+test('line selection handles empty and final lines and remains available read-only', t => {
+  const {cm,key} = setup(t);
+  attachHotkeys(cm);
+  cm.setValue('first\n\nlast');
+  cm.setCursor({line:1,ch:0});
+  key('Alt-L');
+  assert.equal(cm.getSelection(),'\n');
+  cm.setOption('readOnly',true);
+  cm.setCursor({line:2,ch:2});
+  key('Alt-L');
+  assert.equal(cm.getSelection(),'last');
+  assert.equal(cm.getValue(),'first\n\nlast');
+});
