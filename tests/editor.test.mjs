@@ -188,15 +188,58 @@ test('hover identifies written function calls and Serial methods', t => {
   assert.equal(functionHintAt(cm, {line:0,ch:4}), null);
   cm.getTokenAt = original;
 });
-test('hover tooltip clears on mouse leave', t => {
+test('hover tooltip clears on mouse leave', async t => {
   const {cm} = setup(t);
   cm.setValue('digitalWrite(1, 1);');
   cm.coordsChar = () => ({line:0,ch:3});
   attachFunctionHover(cm);
   const token = cm.getWrapperElement().querySelector('.CodeMirror-line span');
   token.dispatchEvent(new window.MouseEvent('mousemove', {bubbles:true}));
+  await new Promise(resolve => window.requestAnimationFrame(resolve));
   assert.match(token.title, /digitalWrite/);
   cm.getWrapperElement().dispatchEvent(new window.MouseEvent('mouseleave'));
+  assert.equal(token.hasAttribute('title'), false);
+});
+
+test('hover coalesces pointer events, caches tokens and cancels stale work', t => {
+  const {cm} = setup(t);
+  cm.setValue('digitalWrite(1, 1);');
+  const frames = new Map();
+  const request = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
+  let nextFrame = 0, coordinates = 0, reads = 0, ch = 3;
+  window.requestAnimationFrame = callback => { frames.set(++nextFrame, callback); return nextFrame; };
+  window.cancelAnimationFrame = id => frames.delete(id);
+  t.after(() => { window.requestAnimationFrame = request; window.cancelAnimationFrame = cancel; });
+  const getLine = cm.getLine.bind(cm);
+  cm.getLine = line => { reads++; return getLine(line); };
+  cm.coordsChar = () => { coordinates++; return {line:0,ch}; };
+  attachFunctionHover(cm);
+  const wrapper = cm.getWrapperElement();
+  const token = wrapper.querySelector('.CodeMirror-line span');
+  const move = () => token.dispatchEvent(new window.MouseEvent('mousemove', {bubbles:true}));
+  const flush = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback()); };
+  move(); move(); move();
+  assert.equal(frames.size, 1);
+  assert.equal(coordinates, 0);
+  flush();
+  assert.equal(coordinates, 1);
+  assert.equal(reads, 1);
+  ch = 5; move(); flush();
+  assert.equal(reads, 1);
+  assert.match(token.title, /digitalWrite/);
+  move();
+  wrapper.dispatchEvent(new window.MouseEvent('mouseleave'));
+  assert.equal(frames.size, 0);
+  assert.equal(token.hasAttribute('title'), false);
+  move(); flush();
+  assert.equal(reads, 2);
+  move();
+  CodeMirror.signal(cm, 'scroll', cm);
+  assert.equal(frames.size, 0);
+  assert.equal(token.hasAttribute('title'), false);
+  move();
+  cm.replaceRange('//', {line:0,ch:0});
+  assert.equal(frames.size, 0);
   assert.equal(token.hasAttribute('title'), false);
 });
 test('comment shortcut toggles selected lines with indentation and one-step undo', t => {
