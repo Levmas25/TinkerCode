@@ -1,7 +1,7 @@
 import { defaults } from '../src/shortcuts.mjs';
 import { functionHintAt, attachFunctionHover } from '../src/hover.mjs';
 import { toggleComments, duplicateLines, moveLines, attachHotkeys } from '../src/hotkeys.mjs';
-import { createHintProvider } from '../src/hints.mjs';
+import { createHintProvider, showCompletion } from '../src/hints.mjs';
 import { createSketchIndex, collectSketch } from '../src/variables.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -454,6 +454,24 @@ test('punctuation does not read or index the document for completion', t => {
   cm.setCursor({line:1,ch:2});
   cm.getValue = () => { throw new Error('Unexpected document scan'); };
   assert.equal(createHintProvider(snippets)(cm), null);
+});
+
+test('opening completion computes hints once and later updates use fresh hints', t => {
+  const {cm} = setup(t);
+  cm.closeHint();
+  cm.setCursor({line:0,ch:0});
+  let calls = 0;
+  const hint = () => ({list:[{text:'digitalWrite', displayText:`result ${++calls}`}],
+    from:{line:0,ch:0}, to:cm.getCursor()});
+  showCompletion(cm, hint);
+  assert.equal(calls, 1);
+  assert.equal(cm.state.completionActive.data.list[0].displayText, 'result 1');
+  cm.state.completionActive.update();
+  assert.equal(calls, 2);
+  assert.equal(cm.state.completionActive.data.list[0].displayText, 'result 2');
+  cm.closeHint();
+  showCompletion(cm, () => null);
+  assert.equal(cm.state.completionActive, null);
 });
 
 test('reference edits reuse the index and keep later scopes aligned', t => {

@@ -2,6 +2,17 @@ import { renderHint } from './descriptions.mjs';
 import { createSketchIndex } from './variables.mjs';
 import { complete, completionPrefix } from './completions.mjs';
 
+export function showCompletion(editor, hint) {
+  const initial = hint(editor);
+  if (!initial) return;
+  let first = true;
+  editor.showHint({completeSingle:false, hint:cm => {
+    if (!first) return hint(cm);
+    first = false;
+    return initial;
+  }});
+}
+
 export function createHintProvider(snippets) {
   const indexes = new WeakMap();
   return function hint(editor) {
