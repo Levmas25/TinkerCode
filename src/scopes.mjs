@@ -96,14 +96,72 @@ export function createScopeLookup(scopes) {
   };
 }
 
+export function createVariableLookup(declarations, scopesAt) {
+  const buckets = new Map();
+  for (const item of declarations) {
+    if (!item.scope) continue;
+    if (!buckets.has(item.scope)) buckets.set(item.scope, []);
+    buckets.get(item.scope).push(item);
+  }
+  for (const items of buckets.values()) items.sort((a,b) => b.offset-a.offset);
+  scopesAt ??= createScopeLookup([...buckets.keys()]);
+  return offset => {
+    // Merge the active scopes in shadowing order without sorting all visible
+    // declarations. The heap preserves offset ordering for tied scope spans.
+    const heap = [];
+    const before = (a,b) => a.span < b.span ||
+      (a.span === b.span && a.items[a.index].offset > b.items[b.index].offset);
+    function push(entry) {
+      let index = heap.length;
+      heap.push(entry);
+      while (index > 0) {
+        const parent = (index-1) >>> 1;
+        if (!before(entry, heap[parent])) break;
+        heap[index] = heap[parent];
+        index = parent;
+      }
+      heap[index] = entry;
+    }
+    function pop() {
+      const first = heap[0];
+      const last = heap.pop();
+      if (heap.length) {
+        let index = 0;
+        while (index*2+1 < heap.length) {
+          let child = index*2+1;
+          if (child+1 < heap.length && before(heap[child+1], heap[child])) child++;
+          if (!before(heap[child], last)) break;
+          heap[index] = heap[child];
+          index = child;
+        }
+        heap[index] = last;
+      }
+      return first;
+    }
+    for (const scope of scopesAt(offset)) {
+      const items = buckets.get(scope);
+      if (!items) continue;
+      let from = 0, to = items.length;
+      while (from < to) {
+        const middle = (from+to) >>> 1;
+        if (items[middle].end > offset) from = middle+1;
+        else to = middle;
+      }
+      if (from < items.length) push({items, index:from, span:scope.end-scope.start});
+    }
+    const names = [], seen = new Set();
+    while (heap.length) {
+      const entry = pop();
+      const item = entry.items[entry.index++];
+      if (!seen.has(item.name)) { seen.add(item.name); names.push(item.name); }
+      if (entry.index < entry.items.length) push(entry);
+    }
+    return names;
+  };
+}
+
+// Convenience API; repeated editor requests use createVariableLookup directly.
 export function visibleVariables(declarations, offset) {
-  const seen=new Set();
-  return declarations.filter(item=>item.scope && item.end<=offset &&
-    offset>=item.scope.start && offset<item.scope.end)
-    .sort((a,b)=>(a.scope.end-a.scope.start)-(b.scope.end-b.scope.start) || b.offset-a.offset)
-    .filter(item=> {
-      if (seen.has(item.name)) return false;
-      seen.add(item.name);return true;
-    }).map(item=>item.name);
+  return createVariableLookup(declarations)(offset);
 }
 

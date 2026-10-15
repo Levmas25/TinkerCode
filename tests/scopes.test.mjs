@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {collectSketch} from '../src/variables.mjs';
-import {createScopeLookup} from '../src/scopes.mjs';
+import {createScopeLookup, createVariableLookup} from '../src/scopes.mjs';
 
 test('scope index agrees with a full search across overlapping and tied intervals', () => {
   const scopes = [{start:0,end:101}, {start:5,end:30}, {start:15,end:50},
@@ -11,6 +11,23 @@ test('scope index agrees with a full search across overlapping and tied interval
     const expected = scopes.filter(scope => offset >= scope.start && offset < scope.end)
       .sort((a,b) => (a.end-a.start)-(b.end-b.start));
     assert.deepEqual(lookup(offset), expected);
+  }
+});
+
+test('indexed variable visibility matches full sorting at every offset', () => {
+  const scopes = [{start:0,end:100}, {start:10,end:40}, {start:20,end:50}, {start:30,end:35}];
+  const declarations = scopes.flatMap((scope,i) => [
+    {scope, name:'shadow', offset:scope.start+1, end:scope.start+7},
+    {scope, name:`name${i}`, offset:scope.start+8, end:scope.start+13},
+  ]);
+  const lookup = createVariableLookup(declarations);
+  for (let offset = 0; offset <= 100; offset++) {
+    const seen = new Set();
+    const expected = declarations.filter(item => item.end <= offset && offset >= item.scope.start && offset < item.scope.end)
+      .sort((a,b) => (a.scope.end-a.scope.start)-(b.scope.end-b.scope.start) || b.offset-a.offset)
+      .filter(item => { if (seen.has(item.name)) return false; seen.add(item.name); return true; })
+      .map(item => item.name);
+    assert.deepEqual(lookup(offset), expected, `offset ${offset}`);
   }
 });
 function visible(marked) {

@@ -1,6 +1,6 @@
 import { maskSource } from './source.mjs';
 import { scanFunctions, functionSuggestions } from './functions.mjs';
-import { buildScopes, createScopeLookup, visibleVariables } from './scopes.mjs';
+import { buildScopes, createScopeLookup, createVariableLookup } from './scopes.mjs';
 
 // Changing these tokens can alter declarations or control-statement scopes.
 const structuralWord = /^(?:const|constexpr|static|volatile|extern|register|signed|unsigned|int|char|short|long|float|double|bool|boolean|byte|word|String|size_t|u?int(?:8|16|32|64)_t|auto|void|if|else|for|while|do|switch|catch|noexcept)$/;
@@ -57,13 +57,20 @@ export function collectSketch(source) {
     return {...item, scope:scope ?? null};
   });
   const functionBodies = new Set(functions.map(fn => fn.bodyStart).filter(offset => offset !== null));
+  const variablesAt = createVariableLookup(declarations, scopesAt);
   return {
     functions:functionSuggestions(functions),
-    variablesAt:offset=>visibleVariables(declarations,offset),
+    variablesAt,
     canReuseIdentifier(start, end, replacement) {
       const original = code.slice(start, end);
       if (!/^[A-Za-z_]\w*$/.test(original) || structuralWord.test(original) || structuralWord.test(replacement)) return false;
-      if (declarations.some(item => start < item.end && end > item.offset)) return false;
+      let from = 0, to = declarations.length;
+      while (from < to) {
+        const middle = (from+to) >>> 1;
+        if (declarations[middle].offset < end) from = middle+1;
+        else to = middle;
+      }
+      if (from && declarations[from-1].end > start) return false;
       // Only reference edits inside an executable function body are safe.
       return scopesAt(start).some(scope => functionBodies.has(scope.open));
     },
