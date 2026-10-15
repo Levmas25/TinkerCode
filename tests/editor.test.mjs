@@ -347,3 +347,24 @@ test('line selection handles empty and final lines and remains available read-on
   assert.equal(cm.getSelection(),'last');
   assert.equal(cm.getValue(),'first\n\nlast');
 });
+
+for (const [name, fields] of [['if',['condition','']],['ifelse',['condition','','']],['else',['']],['while',['condition','']],['switch',['expression','value','','']]]) {
+  test(`${name} snippet navigates each field and exits after the block`, t => {
+    const {cm,snippets,key} = setup(t);
+    cm.setOption('indentUnit',2);
+    cm.setValue('  '+name); cm.setCursor({line:0,ch:name.length+2});
+    const hint=createHintProvider(snippets);
+    cm.showHint({hint,completeSingle:false});
+    key('Enter');
+    assert.match(cm.getValue(), /\n/);
+    assert.ok(cm.getValue().endsWith('\n  }'));
+    for (const field of fields) {
+      assert.equal(cm.getSelection(),field);
+      key('Tab');
+    }
+    assert.equal(snippets.active(),false);
+    assert.equal(cm.getCursor().ch,3);
+    cm.undo();
+    assert.equal(cm.getValue(),'  '+name);
+  });
+}

@@ -1,7 +1,13 @@
+import { controlTemplates } from './controls.mjs';
 import { descriptions } from './descriptions.mjs';
 export const types = ['int', 'char', 'double', 'float', 'bool', 'boolean', 'byte', 'word', 'short', 'long', 'unsigned', 'signed', 'void', 'String', 'size_t', 'int8_t', 'uint8_t', 'int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t'];
 export const entries = [
   ['for', 'for (initialization; condition; increment)'],
+  ['if', 'if (condition) { … }'],
+  ['ifelse', 'if (condition) { … } else { … }'],
+  ['else', 'else { … }'],
+  ['while', 'while (condition) { … }'],
+  ['switch', 'switch (expression) { case … }'],
 
   ['pinMode', 'pinMode(pin, mode)'],
   ['digitalWrite', 'digitalWrite(pin, value)'],
@@ -33,7 +39,8 @@ export function complete(line, cursor, variables = []) {
   return {
     start: cursor - prefix.length,
     end: cursor + suffix.length,
-    list: candidates.filter(([name]) => name.toLowerCase().startsWith(prefix.toLowerCase()) && (name !== prefix || name === 'for'))
-      .slice(0, 12).map(([text, displayText]) => ({text, displayText, ...(displayText.includes('(') && descriptions[text] ? {description: descriptions[text]} : {})})),
+    list: candidates.filter(([name]) => name.toLowerCase().startsWith(prefix.toLowerCase()) && (name !== prefix || Object.hasOwn(controlTemplates,name)))
+      .slice(0, 12).map(([text, displayText]) => ({text, displayText, ...(Object.hasOwn(controlTemplates,text) ? {kind:'control'} : {}), ...(displayText.includes('(') && descriptions[text] ? {description: descriptions[text]} : {})})),
   };
 }
+

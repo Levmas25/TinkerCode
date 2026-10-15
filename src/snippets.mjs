@@ -1,23 +1,14 @@
+import { controlTemplates, planControl } from './controls.mjs';
 // Produce insertion text and argument ranges without depending on the editor.
 export function planSnippet(item, followingText, standalone = false, indentation = '', indentUnit = '  ') {
+  if (Object.hasOwn(controlTemplates, item.text)) {
+    if (/^\s*[({]/.test(followingText)) return {text: item.text === 'ifelse' ? 'if' : item.text, fields: []};
+    return planControl(item.text, indentation, indentUnit);
+  }
   const signature = item.displayText;
   const open = signature.indexOf('(');
   if (open < 0 || /^\s*\(/.test(followingText)) {
     return { text: item.text, fields: [] };
-  }
-  if (item.text === 'for') {
-    let text = 'for (';
-    const fields = [];
-    for (const [index, value] of ['int i = 0', 'i < count', 'i++'].entries()) {
-      if (index) text += '; ';
-      const start = text.length;
-      text += value;
-      fields.push({start, end: text.length});
-    }
-    text += ') {\n' + indentation + indentUnit;
-    fields.push({start: text.length, end: text.length});
-    text += '\n' + indentation + '}';
-    return {text, fields};
   }
   const fields = [];
   const argumentsText = signature.slice(open + 1, -1);
@@ -77,7 +68,7 @@ export function createSnippets(cm) {
     insert(item, data) {
       const from = item.from || data.from;
       const to = item.to || data.to;
-      if (session && !item.displayText.includes('(')) {
+      if (session && item.kind !== 'control' && !item.displayText.includes('(')) {
         cm.operation(() => {
           cm.replaceRange(item.text, from, to, 'complete');
           cm.setCursor({line: from.line, ch: from.ch + item.text.length});
@@ -125,3 +116,4 @@ export function isStatementStart(source) {
   }
   return parentheses === 0 && brackets === 0 && /(?:^|[;{}])\s*$/.test(code);
 }
+

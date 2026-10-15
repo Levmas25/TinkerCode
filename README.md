@@ -107,3 +107,7 @@ Type suggestions include `int`, `char`, `double`, `float`, `bool`, `byte`, `shor
 ## Select whole lines
 
 Alt+L selects the current line, including its newline when present. Press it again to extend the selection to the next line. The final line is selected through its last character. You can change or disable this binding in the shortcut popup. Existing saved shortcut preferences are preserved when this new action is added; if Alt+L is already assigned, the new action starts disabled to avoid a collision.
+
+## Control-flow snippets
+
+Accept `if`, `ifelse`, `else`, `while`, or `switch` from autocomplete to insert an indented block. `ifelse` expands into an if/else pair. Tab and Shift+Tab navigate conditions, case values, and empty body stops; Escape exits. The switch template includes one case, a default branch, and break statements. These snippets also accept uppercase input. Complete or exit the current snippet before expanding another block.

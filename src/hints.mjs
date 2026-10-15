@@ -12,7 +12,7 @@ export function createHintProvider(snippets) {
     const result = complete(editor.getLine(pos.line), pos.ch, indexes.get(editor)());
     if (!result) return null;
     // Nested function snippets are not supported; constants keep the current session.
-    const matches = result.list.filter(item => !snippets.active() || !item.displayText.includes('('));
+    const matches = result.list.filter(item => !snippets.active() || (item.kind !== 'control' && !item.displayText.includes('(')));
     if (!matches.length) return null;
     return {
       list: matches.map(item => ({...item, render: renderHint, hint: (_cm, data, completion) => snippets.insert(completion, data)})),
@@ -21,5 +21,6 @@ export function createHintProvider(snippets) {
     };
   };
 }
+
 
 
