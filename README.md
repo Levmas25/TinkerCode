@@ -111,3 +111,9 @@ Alt+L selects the current line, including its newline when present. Press it aga
 ## Control-flow snippets
 
 Accept `if`, `ifelse`, `else`, `while`, or `switch` from autocomplete to insert an indented block. `ifelse` expands into an if/else pair. Tab and Shift+Tab navigate conditions, case values, and empty body stops; Escape exits. The switch template includes one case, a default branch, and break statements. These snippets also accept uppercase input. Complete or exit the current snippet before expanding another block.
+
+## Sketch-function autocomplete
+
+Ordinary functions declared or defined at sketch scope appear in suggestions with their parameter types. For example, `void blink(int pin, unsigned long duration)` produces a `blink(int pin, unsigned long duration)` suggestion and inserts `blink(pin, duration)` with editable argument stops. Existing parentheses are preserved; standalone calls receive a semicolon, while expression calls do not. Matching ignores case and inserts the declared spelling. Functions and variables share the same index, refreshed after a 120 ms typing pause.
+
+Prototypes and matching definitions are deduplicated, and overloads with different parameter types remain available. Empty and `(void)` parameter lists insert empty calls; unnamed parameters use `arg1`, `arg2`, etc. Default argument values are omitted from the inserted call so each argument can be edited. This lightweight scanner supports ordinary free functions; templates, class/namespace members, and function-pointer parameters are outside its current scope. Nested function snippets remain disabled while another snippet is active.

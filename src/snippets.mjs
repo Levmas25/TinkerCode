@@ -5,7 +5,7 @@ export function planSnippet(item, followingText, standalone = false, indentation
     if (/^\s*[({]/.test(followingText)) return {text: item.text === 'ifelse' ? 'if' : item.text, fields: []};
     return planControl(item.text, indentation, indentUnit);
   }
-  const signature = item.displayText;
+  const signature = item.callText ?? item.displayText;
   const open = signature.indexOf('(');
   if (open < 0 || /^\s*\(/.test(followingText)) {
     return { text: item.text, fields: [] };
@@ -116,4 +116,3 @@ export function isStatementStart(source) {
   }
   return parentheses === 0 && brackets === 0 && /(?:^|[;{}])\s*$/.test(code);
 }
-

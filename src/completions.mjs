@@ -26,21 +26,28 @@ export const entries = [
   ['Serial.read', 'Serial.read()'],
   ...types.map(name => [name, name]),
 ];
-export function complete(line, cursor, variables = []) {
+export function complete(line, cursor, variables = [], functions = []) {
   const prefix = line.slice(0, cursor).match(/[A-Za-z_][\w.]*$/)?.[0] ?? '';
   if (!prefix || /[\w.]/.test(line[cursor - prefix.length - 1] ?? '')) return null;
   const suffix = line.slice(cursor).match(/^[\w.]*/)?.[0] ?? '';
   const seen = new Set();
-  const candidates = [...variables.map(name => [name, name]), ...entries].filter(([name]) => {
-    if (seen.has(name)) return false;
-    seen.add(name);
-    return true;
+  const candidates = [
+    ...variables.map(text=>({text,displayText:text})),
+    ...functions,
+    ...entries.map(([text,displayText])=>({text,displayText,
+      ...(Object.hasOwn(controlTemplates,text) ? {kind:'control'} : {}),
+      ...(displayText.includes('(') && descriptions[text] ? {description:descriptions[text]} : {}),
+    })),
+  ].filter(item=> {
+    const key=item.kind==='function' ? item.displayText : item.text;
+    if (seen.has(key)) return false;
+    seen.add(key);return true;
   });
   return {
     start: cursor - prefix.length,
     end: cursor + suffix.length,
-    list: candidates.filter(([name]) => name.toLowerCase().startsWith(prefix.toLowerCase()) && (name !== prefix || Object.hasOwn(controlTemplates,name)))
-      .slice(0, 12).map(([text, displayText]) => ({text, displayText, ...(Object.hasOwn(controlTemplates,text) ? {kind:'control'} : {}), ...(displayText.includes('(') && descriptions[text] ? {description: descriptions[text]} : {})})),
+    list: candidates.filter(item=>item.text.toLowerCase().startsWith(prefix.toLowerCase()) &&
+      (item.text !== prefix || item.kind==='control' || item.kind==='function'))
+      .slice(0,12),
   };
 }
-

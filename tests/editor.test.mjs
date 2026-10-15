@@ -368,3 +368,48 @@ for (const [name, fields] of [['if',['condition','']],['ifelse',['condition','',
     assert.equal(cm.getValue(),'  '+name);
   });
 }
+
+test('sketch function completion displays typed signature and inserts argument fields', t => {
+  const {cm,snippets,key} = setup(t);
+  cm.setValue('void blink(int pin, unsigned long duration) {}\nBLI');
+  cm.setCursor({line:1,ch:3});
+  const hint=createHintProvider(snippets);
+  const first=hint(cm).list[0];
+  assert.equal(first.displayText,'blink(int pin, unsigned long duration)');
+  cm.showHint({hint,completeSingle:false});
+  key('Enter');
+  assert.equal(cm.getLine(1),'blink(pin, duration);');
+  assert.equal(cm.getSelection(),'pin');
+  cm.replaceSelection('13','end','+input');
+  key('Tab'); assert.equal(cm.getSelection(),'duration');
+  cm.replaceSelection('100','end','+input');
+  key('Tab'); assert.equal(snippets.active(),false);
+  assert.equal(cm.getLine(1),'blink(13, 100);');
+});
+test('sketch calls in expressions do not add semicolons or duplicate parentheses', t => {
+  const {cm,snippets} = setup(t);
+  cm.setValue('int readSensor(int pin) { return pin; }\nint result = readS(1);');
+  cm.setCursor({line:1,ch:18});
+  const hint=createHintProvider(snippets);
+  let data=hint(cm);
+  assert.ok(data);
+  data.list[0].hint(cm,data,data.list[0]);
+  assert.equal(cm.getLine(1),'int result = readSensor(1);');
+  cm.setValue('int readSensor(int pin) { return pin; }\nint result = readS');
+  cm.setCursor({line:1,ch:18});
+  data=createHintProvider(snippets)(cm);
+  data.list[0].hint(cm,data,data.list[0]);
+  assert.equal(cm.getLine(1),'int result = readSensor(pin)');
+});
+test('sketch function index removes old names and offers renamed definitions', async t => {
+  const {cm,snippets} = setup(t);
+  cm.setValue('void oldFunction() {}\noldF'); cm.setCursor({line:1,ch:4});
+  const hint=createHintProvider(snippets);
+  assert.equal(hint(cm).list[0].text,'oldFunction');
+  cm.setValue('void newFunction() {}\nnewF'); cm.setCursor({line:1,ch:4});
+  await new Promise(resolve=>setTimeout(resolve,160));
+  assert.equal(hint(cm).list[0].text,'newFunction');
+  cm.setValue('oldF'); cm.setCursor({line:0,ch:4});
+  await new Promise(resolve=>setTimeout(resolve,160));
+  assert.equal(hint(cm),null);
+});

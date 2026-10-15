@@ -1,5 +1,5 @@
 import { renderHint } from './descriptions.mjs';
-import { createVariableIndex } from './variables.mjs';
+import { createSketchIndex } from './variables.mjs';
 import { complete } from './completions.mjs';
 
 export function createHintProvider(snippets) {
@@ -8,8 +8,9 @@ export function createHintProvider(snippets) {
     if (editor.getOption('readOnly') || editor.somethingSelected()) return null;
     const pos = editor.getCursor();
     if (/comment|string/.test(editor.getTokenAt(pos).type ?? '')) return null;
-    if (!indexes.has(editor)) indexes.set(editor, createVariableIndex(editor));
-    const result = complete(editor.getLine(pos.line), pos.ch, indexes.get(editor)());
+    if (!indexes.has(editor)) indexes.set(editor, createSketchIndex(editor));
+    const symbols = indexes.get(editor)();
+    const result = complete(editor.getLine(pos.line), pos.ch, symbols.variables, symbols.functions);
     if (!result) return null;
     // Nested function snippets are not supported; constants keep the current session.
     const matches = result.list.filter(item => !snippets.active() || (item.kind !== 'control' && !item.displayText.includes('(')));
@@ -21,6 +22,3 @@ export function createHintProvider(snippets) {
     };
   };
 }
-
-
-

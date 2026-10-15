@@ -1,7 +1,8 @@
+import { maskSource } from './source.mjs';
+import { collectFunctions } from './functions.mjs';
 // A declaration scanner for common Arduino types, not a full C++ parser.
 export function collectVariables(source) {
-  const code = source.replace(/\/\*[\s\S]*?(?:\*\/|$)|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,
-    token => token.replace(/[^\n]/g, ' ')).replace(/^\s*#.*$/gm, '');
+  const code = maskSource(source);
   const type = /\b(?:(?:const|constexpr|static|volatile|extern|register|signed|unsigned)\s+)*(?:(?:long\s+)?(?:int|char|short|long|float|double|bool|boolean|byte|word|String|size_t|u?int(?:8|16|32|64)_t|auto)|unsigned|signed)\b\s*/g;
   const names = new Set();
   for (const match of code.matchAll(type)) {
@@ -35,12 +36,16 @@ export function collectVariables(source) {
   return [...names];
 }
 
-export function createVariableIndex(editor) {
-  let names = collectVariables(editor.getValue());
+export function createSketchIndex(editor) {
+  function collect() {
+    const source=editor.getValue();
+    return {variables:collectVariables(source), functions:collectFunctions(source)};
+  }
+  let symbols=collect();
   let timer;
   editor.on('changes', () => {
     clearTimeout(timer);
-    timer = setTimeout(() => { names = collectVariables(editor.getValue()); }, 120);
+    timer=setTimeout(()=> {symbols=collect();},120);
   });
-  return () => names;
+  return ()=>symbols;
 }
