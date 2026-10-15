@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {collectSketch} from '../src/variables.mjs';
+import {createScopeLookup} from '../src/scopes.mjs';
+
+test('scope index agrees with a full search across overlapping and tied intervals', () => {
+  const scopes = [{start:0,end:101}, {start:5,end:30}, {start:15,end:50},
+    {start:15,end:50}, {start:20,end:25}, {start:60,end:100}];
+  const lookup = createScopeLookup(scopes);
+  for (let offset = -1; offset <= 102; offset++) {
+    const expected = scopes.filter(scope => offset >= scope.start && offset < scope.end)
+      .sort((a,b) => (a.end-a.start)-(b.end-b.start));
+    assert.deepEqual(lookup(offset), expected);
+  }
+});
 function visible(marked) {
   const cursor=marked.indexOf('|');
   assert.ok(cursor>=0);

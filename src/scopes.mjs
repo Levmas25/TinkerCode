@@ -1,8 +1,7 @@
 import { maskSource } from './source.mjs';
 
 // Lexical block and control-statement scopes. Positions are source offsets.
-export function buildScopes(source) {
-  const code=maskSource(source);
+export function buildScopes(source, code = maskSource(source)) {
   const tokens=[...code.matchAll(/[A-Za-z_]\w*|[^\s]/g)].map(match=>({text:match[0],start:match.index,end:match.index+match[0].length}));
   const pairs=new Map();
   const stack=[];
@@ -67,6 +66,34 @@ export function buildScopes(source) {
     }
   }
   return scopes;
+}
+
+// An interval index also handles overlapping scopes in incomplete sketches.
+export function createScopeLookup(scopes) {
+  const ordered = scopes.map((scope, order) => ({scope, order}))
+    .sort((a, b) => a.scope.start - b.scope.start || a.order - b.order);
+  function build(from, to) {
+    if (from >= to) return null;
+    const middle = (from + to) >>> 1;
+    const left = build(from, middle);
+    const right = build(middle + 1, to);
+    return {...ordered[middle], left, right,
+      maxEnd: Math.max(ordered[middle].scope.end, left?.maxEnd ?? -Infinity, right?.maxEnd ?? -Infinity)};
+  }
+  const root = build(0, ordered.length);
+  return offset => {
+    const matches = [];
+    function visit(node) {
+      if (!node || node.maxEnd <= offset) return;
+      visit(node.left);
+      if (node.scope.start > offset) return;
+      if (offset < node.scope.end) matches.push(node);
+      visit(node.right);
+    }
+    visit(root);
+    return matches.sort((a, b) => (a.scope.end - a.scope.start) -
+      (b.scope.end - b.scope.start) || a.order - b.order).map(node => node.scope);
+  };
 }
 
 export function visibleVariables(declarations, offset) {

@@ -1,10 +1,9 @@
 import { maskSource } from './source.mjs';
 import { scanFunctions, functionSuggestions } from './functions.mjs';
-import { buildScopes, visibleVariables } from './scopes.mjs';
+import { buildScopes, createScopeLookup, visibleVariables } from './scopes.mjs';
 
 // Common Arduino declarations, with source positions for scope lookup.
-export function collectVariableDeclarations(source) {
-  const code = maskSource(source);
+export function collectVariableDeclarations(source, code = maskSource(source)) {
   const type = /\b(?:(?:const|constexpr|static|volatile|extern|register|signed|unsigned)\s+)*(?:(?:long\s+)?(?:int|char|short|long|float|double|bool|boolean|byte|word|String|size_t|u?int(?:8|16|32|64)_t|auto)|unsigned|signed)\b\s*/g;
   const declarations = [];
   for (const match of code.matchAll(type)) {
@@ -40,14 +39,18 @@ export function collectVariables(source) {
   return [...new Set(collectVariableDeclarations(source).map(item=>item.name))];
 }
 export function collectSketch(source) {
-  const functions = scanFunctions(source);
-  const scopes = buildScopes(source);
-  const declarations = collectVariableDeclarations(source).map(item=> {
-    const parameter = functions.find(fn=>item.offset >= fn.parameterStart && item.offset < fn.parameterEnd);
+  const code = maskSource(source);
+  const functions = scanFunctions(source, code);
+  const scopes = buildScopes(source, code);
+  const scopesAt = createScopeLookup(scopes);
+  const bodyScopes = new Map(scopes.filter(scope => scope.open != null).map(scope => [scope.open, scope]));
+  let functionIndex = 0;
+  const declarations = collectVariableDeclarations(source, code).sort((a, b) => a.offset - b.offset).map(item=> {
+    while (functionIndex < functions.length && functions[functionIndex].parameterEnd <= item.offset) functionIndex++;
+    const fn = functions[functionIndex];
+    const parameter = fn && item.offset >= fn.parameterStart && item.offset < fn.parameterEnd ? fn : null;
     // Prototype parameters belong to no executable scope.
-    const scope = parameter ? (parameter.bodyStart===null ? undefined : scopes.find(scope=>scope.open===parameter.bodyStart)) :
-      scopes.filter(scope=>item.offset>=scope.start && item.offset<scope.end)
-        .sort((a,b)=>(a.end-a.start)-(b.end-b.start))[0];
+    const scope = parameter ? bodyScopes.get(parameter.bodyStart) : scopesAt(item.offset)[0];
     return {...item, scope:scope ?? null};
   });
   return {functions:functionSuggestions(functions), variablesAt:offset=>visibleVariables(declarations,offset)};

@@ -2,8 +2,7 @@ import { maskSource } from './source.mjs';
 
 // Recognize ordinary free-function declarations/definitions at sketch scope.
 // This deliberately leaves templates, class methods, and function pointers out.
-export function scanFunctions(source) {
-  const code = maskSource(source);
+export function scanFunctions(source, code = maskSource(source)) {
   const functions = [];
   let depth = 0;
   let boundary = 0;
