@@ -554,3 +554,38 @@ test('batched and structural-word edits rebuild instead of reusing scope offsets
     assert.deepEqual(index().variablesAt(offset), collectSketch(source).variablesAt(offset));
   }
 });
+
+test('incremental offsets survive character insertions, deletions and undo', t => {
+  const {cm} = setup(t);
+  cm.setValue('int global; void loop(int param) { int local; glo; }');
+  const index = createSketchIndex(cm);
+  const start = cm.getLine(0).indexOf('glo;');
+  const verify = () => {
+    const source = cm.getValue(), fresh = collectSketch(source), cached = index();
+    for (let offset = 0; offset <= source.length; offset++) {
+      assert.deepEqual(cached.variablesAt(offset), fresh.variablesAt(offset), `offset ${offset}`);
+    }
+  };
+  cm.replaceRange('bal', {line:0,ch:start+3}); verify();
+  cm.replaceRange('', {line:0,ch:start+1}, {line:0,ch:start+5}); verify();
+  cm.replaceRange('other', {line:0,ch:start}, {line:0,ch:start+2}); verify();
+  cm.undo(); verify();
+  cm.redo(); verify();
+  // A structural keyword cannot reuse the old tokenization.
+  cm.replaceRange('int', {line:0,ch:start}, {line:0,ch:start+5}); verify();
+});
+
+test('reference edit history is bounded and rebases before the next lookup', t => {
+  const {cm} = setup(t);
+  cm.setValue('void loop() { int local; loc; }');
+  const index = createSketchIndex(cm);
+  const getValue = cm.getValue.bind(cm);
+  let reads = 0;
+  cm.getValue = () => { reads++; return getValue(); };
+  const start = cm.getLine(0).indexOf('loc;');
+  for (let i = 0; i < 65; i++) {
+    cm.replaceRange(i % 2 ? 'loc' : 'foo', {line:0,ch:start}, {line:0,ch:start+3});
+    assert.deepEqual(index().variablesAt(start+3), ['local']);
+  }
+  assert.equal(reads, 1);
+});
