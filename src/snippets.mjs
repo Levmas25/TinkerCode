@@ -1,9 +1,23 @@
 // Produce insertion text and argument ranges without depending on the editor.
-export function planSnippet(item, followingText, standalone = false) {
+export function planSnippet(item, followingText, standalone = false, indentation = '', indentUnit = '  ') {
   const signature = item.displayText;
   const open = signature.indexOf('(');
   if (open < 0 || /^\s*\(/.test(followingText)) {
     return { text: item.text, fields: [] };
+  }
+  if (item.text === 'for') {
+    let text = 'for (';
+    const fields = [];
+    for (const [index, value] of ['int i = 0', 'i < count', 'i++'].entries()) {
+      if (index) text += '; ';
+      const start = text.length;
+      text += value;
+      fields.push({start, end: text.length});
+    }
+    text += ') {\n' + indentation + indentUnit;
+    fields.push({start: text.length, end: text.length});
+    text += '\n' + indentation + '}';
+    return {text, fields};
   }
   const fields = [];
   const argumentsText = signature.slice(open + 1, -1);
@@ -71,10 +85,11 @@ export function createSnippets(cm) {
         return;
       }
       stop();
-      const plan = planSnippet(item, cm.getLine(to.line).slice(to.ch), isStatementStart(cm.getRange({line: 0, ch: 0}, from)));
+      const plan = planSnippet(item, cm.getLine(to.line).slice(to.ch), isStatementStart(cm.getRange({line: 0, ch: 0}, from)), cm.getLine(from.line).match(/^\s*/)[0], cm.getOption('indentWithTabs') ? '\t' : ' '.repeat(cm.getOption('indentUnit') || 2));
       cm.operation(() => {
         cm.replaceRange(plan.text, from, to, 'complete');
-        const pos = offset => ({ line: from.line, ch: from.ch + offset });
+        const startIndex = cm.indexFromPos(from);
+        const pos = offset => cm.posFromIndex(startIndex + offset);
         const end = pos(plan.text.length);
         if (!plan.fields.length) { cm.setCursor(end); return; }
         const fields = plan.fields.map(field => cm.markText(pos(field.start), pos(field.end), {
@@ -110,5 +125,3 @@ export function isStatementStart(source) {
   }
   return parentheses === 0 && brackets === 0 && /(?:^|[;{}])\s*$/.test(code);
 }
-
-

@@ -89,3 +89,17 @@ Open TinkerCode from the browser toolbar or Extensions menu. Click a shortcut fi
 
 The settings popup and isolated content script access extension storage. A validated, settings-only message passes shortcut values to the page-world editor adapter; page messages cannot write extension storage. No sketch code is sent through this bridge.
 
+
+## Loop snippets and type completion
+
+Type `fo` or `for`, then accept the loop suggestion to insert:
+
+```cpp
+for (int i = 0; i < count; i++) {
+
+}
+```
+
+Tab moves through initialization, condition, increment, and the body. Shift+Tab moves back; Escape ends navigation. Replace `count` with your loop limit. Each header section is independently editable: if you rename `i`, update the other sections too. The snippet follows the editor's indentation settings and keeps existing parentheses when completing a loop already being written. Nested snippet expansion is available after leaving the current snippet.
+
+Type suggestions include `int`, `char`, `double`, `float`, `bool`, `byte`, `short`, `long`, `unsigned`, `signed`, `void`, `String`, `size_t`, and fixed-width integer types. Matching is case-insensitive and inserts the correct spelling. Types are available inside snippet placeholders as well.

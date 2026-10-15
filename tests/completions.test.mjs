@@ -24,3 +24,10 @@ test('case-insensitive matching preserves canonical Arduino spelling', () => {
   assert.equal(complete('serial.PR', 9).list[0].text, 'Serial.print');
   assert.equal(complete('DIGITALWRITE', 12).list[0].text, 'digitalWrite');
 });
+
+test('common types autocomplete with their canonical spelling', () => {
+  for (const [prefix,name] of [['ch','char'],['INT','int'],['dou','double'],['bo','bool'],['str','String']]) {
+    assert.ok(complete(prefix,prefix.length).list.some(item=>item.text===name));
+  }
+  assert.ok(complete('for',3).list.some(item=>item.text==='for'));
+});

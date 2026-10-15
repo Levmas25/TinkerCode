@@ -1,5 +1,8 @@
 import { descriptions } from './descriptions.mjs';
+export const types = ['int', 'char', 'double', 'float', 'bool', 'boolean', 'byte', 'word', 'short', 'long', 'unsigned', 'signed', 'void', 'String', 'size_t', 'int8_t', 'uint8_t', 'int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t'];
 export const entries = [
+  ['for', 'for (initialization; condition; increment)'],
+
   ['pinMode', 'pinMode(pin, mode)'],
   ['digitalWrite', 'digitalWrite(pin, value)'],
   ['digitalRead', 'digitalRead(pin)'],
@@ -15,6 +18,7 @@ export const entries = [
   ['Serial.println', 'Serial.println(value)'],
   ['Serial.available', 'Serial.available()'],
   ['Serial.read', 'Serial.read()'],
+  ...types.map(name => [name, name]),
 ];
 export function complete(line, cursor, variables = []) {
   const prefix = line.slice(0, cursor).match(/[A-Za-z_][\w.]*$/)?.[0] ?? '';
@@ -29,11 +33,7 @@ export function complete(line, cursor, variables = []) {
   return {
     start: cursor - prefix.length,
     end: cursor + suffix.length,
-    list: candidates.filter(([name]) => name.toLowerCase().startsWith(prefix.toLowerCase()) && name !== prefix)
+    list: candidates.filter(([name]) => name.toLowerCase().startsWith(prefix.toLowerCase()) && (name !== prefix || name === 'for'))
       .slice(0, 12).map(([text, displayText]) => ({text, displayText, ...(displayText.includes('(') && descriptions[text] ? {description: descriptions[text]} : {})})),
   };
 }
-
-
-
-

@@ -276,3 +276,46 @@ test('updating shortcut settings removes old bindings and applies new ones', t =
   key('Ctrl-/');
   assert.equal(cm.getLine(0),'a');
 });
+
+test('for snippet navigates header fields and indented body', t => {
+  const {cm,snippets,key} = setup(t);
+  cm.setOption('indentUnit', 2);
+  cm.setValue('void loop() {\n  for\n}');
+  cm.setCursor({line:1,ch:5});
+  const hint=createHintProvider(snippets);
+  cm.showHint({hint,completeSingle:false});
+  key('Tab');
+  assert.equal(cm.getValue(),'void loop() {\n  for (int i = 0; i < count; i++) {\n    \n  }\n}');
+  assert.equal(cm.getSelection(),'int i = 0');
+  cm.replaceSelection('int n = 1','end','+input');
+  key('Tab'); assert.equal(cm.getSelection(),'i < count');
+  cm.replaceSelection('n < 10','end','+input');
+  key('Tab'); assert.equal(cm.getSelection(),'i++');
+  cm.replaceSelection('n++','end','+input');
+  key('Tab'); assert.equal(cm.getCursor().line,2); assert.equal(cm.getCursor().ch,4);
+  cm.replaceSelection('delay(100);','end','+input');
+  key('Shift-Tab'); assert.equal(cm.getSelection(),'n++');
+  key('Tab'); assert.equal(cm.getSelection(),'delay(100);');
+  key('Tab'); assert.equal(snippets.active(),false); assert.equal(cm.getCursor().line,3);
+});
+test('for completion preserves an existing opening parenthesis', t => {
+  const {cm,snippets} = setup(t);
+  cm.setValue('fo (int i=0; i<3; i++) {}');
+  snippets.insert({text:'for',displayText:'for (initialization; condition; increment)'},{from:{line:0,ch:0},to:{line:0,ch:2}});
+  assert.equal(cm.getValue(),'for (int i=0; i<3; i++) {}');
+  assert.equal(snippets.active(),false);
+});
+
+test('for snippet respects tab indentation and undoes as one insertion', t => {
+  const {cm,snippets,key} = setup(t);
+  cm.setOption('indentWithTabs',true);
+  cm.setValue('void loop() {\n\tFOR\n}');
+  cm.setCursor({line:1,ch:4});
+  const hint=createHintProvider(snippets);
+  cm.showHint({hint,completeSingle:false});
+  key('Enter');
+  assert.equal(cm.getValue(),'void loop() {\n\tfor (int i = 0; i < count; i++) {\n\t\t\n\t}\n}');
+  cm.undo();
+  assert.equal(cm.getValue(),'void loop() {\n\tFOR\n}');
+  assert.equal(snippets.active(),false);
+});
